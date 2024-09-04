@@ -1,6 +1,0 @@
-{
-    "units": "mm",
-    "ts_file_path": "C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/goldsim_tests/Example_TS.csv",
-    "date_col": "DATE",
-    "precip_col": "PRCP"
-}
