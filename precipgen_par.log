@@ -1,0 +1,9 @@
+2024-07-24 14:48:27,352 - PrecipGenPAR - INFO - Configuration updated: units = in
+2024-07-24 14:51:47,527 - PrecipGenPAR - INFO - Configuration updated: units = in
+2024-07-24 14:52:10,855 - PrecipGenPAR - INFO - Configuration updated: ts_file_path = C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/3703955_SaltLakeCity - Copy.csv
+2024-07-24 14:52:10,919 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in 3703955_SaltLakeCity - Copy.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 14:52:11,020 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in 3703955_SaltLakeCity - Copy.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 18:23:24,072 - PrecipGenPAR - INFO - Configuration updated: ts_file_path = C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/3703955_SaltLakeCity - Copy.csv
+2024-07-24 18:23:24,194 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in 3703955_SaltLakeCity - Copy.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 18:23:24,357 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in 3703955_SaltLakeCity - Copy.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 18:27:16,463 - PrecipGenPAR - INFO - Configuration updated: ts_file_path = C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/3703955_SaltLakeCity - Copy.csv

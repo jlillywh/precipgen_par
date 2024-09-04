@@ -1,0 +1,18 @@
+2024-07-24 13:08:15,851 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in Example_TS.csv: The following incomplete years were removed from the dataset: 2024.0, nan
+2024-07-24 13:08:26,326 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in Example_TS.csv: The following incomplete years were removed from the dataset: 2024.0, nan
+2024-07-24 13:08:26,436 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in Example_TS.csv: The following incomplete years were removed from the dataset: 2024.0, nan
+2024-07-24 13:11:52,464 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in Example_TS.csv: The following incomplete years were removed from the dataset: 2024.0, nan
+2024-07-24 13:12:03,723 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in Example_TS.csv: The following incomplete years were removed from the dataset: 2024.0, nan
+2024-07-24 13:14:30,074 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in Example_TS.csv: The following incomplete years were removed from the dataset: 2024.0, nan
+2024-07-24 13:14:38,371 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in 3703955_SaltLakeCity.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 13:14:38,460 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in 3703955_SaltLakeCity.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 14:17:04,951 - PrecipGenPAR - INFO - Configuration updated: units = mm
+2024-07-24 14:17:05,007 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in Example_TS.csv: The following incomplete years were removed from the dataset: 2024.0, nan
+2024-07-24 14:17:13,437 - PrecipGenPAR - INFO - Configuration updated: ts_file_path = C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/goldsim_tests/3703955_SaltLakeCity.csv
+2024-07-24 14:17:13,469 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in 3703955_SaltLakeCity.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 14:17:13,564 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in 3703955_SaltLakeCity.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 14:20:32,262 - PrecipGenPAR - INFO - Configuration updated: units = in
+2024-07-24 14:20:32,304 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in historical_data_modified.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-24 14:20:54,556 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in historical_data_modified.csv: The following incomplete years were removed from the dataset: 2024
+2024-07-27 10:34:14,238 - PrecipGenPAR - INFO - Configuration updated: units = mm
+2024-07-29 08:38:23,598 - PrecipGenPAR - INFO - Configuration updated: units = mm

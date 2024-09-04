@@ -1,0 +1,190 @@
+C**************************************************************************
+C* *
+C* DEE ALLEN WRIGHT *
+C* Jason Lillywhite removed Temperature and Radiation for testing of precip only *
+C* COMPUTER PROGRAMMER *
+C* FEBRUARY 25, 1983 *
+C* *
+C**************************************************************************
+DIMENSION RAIN(20,365)
+DIMENSION AA(20)
+DIMENSION RC(365)
+DIMENSION XDATA(30),YDATA(4,12)
+DO 1 I=1,30
+XDATA(I)=0.0
+1 CONTINUE
+
+DO 2 I=1,4
+DO 2 J=1,12
+YDATA(I,J)=0.0
+2 CONTINUE
+
+C*************************************************************************
+C* *
+C* INPUT #1 TITLE OF DATA SET (20A4) *
+C* *
+C*************************************************************************
+READ(5,100) (AA(I),I=1,20)
+100 FORMAT(20A4)
+WRITE(6,101) (AA(I),I=1,20)
+101 FORMAT('1',//,30X,'DATA IS ------',20A4,//)
+C*************************************************************************
+C* *
+C* INPUT #2 NUMBER OF YEARS AND LATITUDE *
+C* *
+C*************************************************************************
+READ(5,102) NYRS
+102 FORMAT(I10,F10.0)
+
+XYRS=NYRS
+
+C*************************************************************************
+C* *
+C* INPUT #3 MO, DAY, YEAR, RAINFALL *
+C* *
+C* *
+C*************************************************************************
+8 READ(5,103) IMO,IDA,IYR,V3
+IF(IMO.EQ.2.AND.IDA.EQ.29) GOTO 8
+RAIN(I,J) = V3
+
+C*****CALCULATE RAINFALL PARAMETERS
+C*****WRITE GENERATION PARAMETERS FOR INPUT TO WGEN
+CALL PPRAIN(RAIN,NYRS,YDATA)
+WRITE(6,'(20A4)') (AA(I),I=1,20)
+WRITE(6,707)
+707 FORMAT(///,20X,'INPUT CARDS FOR THE WEATHER GENERATOR ARE AS FOLLOWS -----------',////)
+WRITE(6,403)
+403 FORMAT(///)
+WRITE(6,513) (YDATA(1,J),J=1,12)
+WRITE(6,514) (YDATA(2,J),J=1,12)
+WRITE(6,515) (YDATA(3,J),J=1,12)
+WRITE(6,516) (YDATA(4,J),J=1,12)
+513 FORMAT(5X,'INPUT # 3 ---- P(W/W)',12F6.3)
+514 FORMAT(5X,'INPUT # 4 ---- P(W/D)',12F6.3)
+515 FORMAT(5X,'INPUT # 5 ---- ALPHA ',12F6.3)
+516 FORMAT(5X,'INPUT # 6 ---- BETA ',12F6.3)
+WRITE(6,400)
+400 FORMAT(////)
+
+STOP
+END
+
+C*****THIS SUBROUTINE CALCULATES THE RAINFALL GENERATION PARAMETERS
+C*****USING THE MARKOV CHAIN-GAMMA MODEL
+SUBROUTINE PPRAIN(XRAIN,NYR,YDATA)
+DIMENSION XRAIN(20,365)
+DIMENSION NWD(12),NDD(12),NDW(12),NWW(12)
+DIMENSION SUM(12),SUM2(12),SUM3(12)
+DIMENSION SL(12),PWW(12),PWD(12),RBAR(12)
+DIMENSION ALPHA(12),BETA(12)
+DIMENSION NW(12),IC(12),SUML(12)
+DIMENSION RLBAR(12),AL2(12),BE2(12),DATE(12)
+DIMENSION PPPW(12),ND(12)
+DIMENSION YDATA(4,12)
+CHARACTER *36 A(2)
+DATA DATE /'JAN.','FEB.','MAR.','APR.','MAY ','JUNE',
+* 'JULY','AUG.','SEP.','OCT.','NOV.','DEC.'/
+DATA A(1) /' '/
+DATA A(2) /'NOT ENOUGH DATA TO DEFINE PARAMETERS'/
+
+DO 10 I =1,12
+ND(I) = 0
+PPPW(I) = 0.
+NWD(I) = 0
+NWW(I) = 0
+NDD(I) = 0
+NDW(I) =0
+NW(I) = 0
+SL(I) = 0.
+SUML(I) = 0.
+SUM(I) = 0.
+SUM2(I) = 0.
+PWW(I) = 0.
+PWD(I) = 0.
+ALPHA(I) = 0.
+BETA(I) = 0.
+SUM3(I) = 0.
+10 CONTINUE
+
+XYR=NYR
+RIM1 = 0.							C**** previous value of rain
+DO 20 J = 1,NYR
+DO 30 K = 1,365
+IF(K .GE. 001 .AND. K .LE. 031) MO = 1
+IF(K .GE. 032 .AND. K .LE. 059) MO = 2
+IF(K .GE. 060 .AND. K .LE. 090) MO = 3
+IF(K .GE. 091 .AND. K .LE. 120) MO = 4
+IF(K .GE. 121 .AND. K .LE. 151) MO = 5
+IF(K .GE. 152 .AND. K .LE. 181) MO = 6
+IF(K .GE. 182 .AND. K .LE. 212) MO = 7
+IF(K .GE. 213 .AND. K .LE. 243) MO = 8
+IF(K .GE. 244 .AND. K .LE. 273) MO = 9
+IF(K .GE. 274 .AND. K .LE. 304) MO = 10
+IF(K .GE. 305 .AND. K .LE. 334) MO = 11
+IF(K .GE. 335 .AND. K .LE. 365) MO = 12
+RAIN=XRAIN(J,K)
+IF(RAIN .GT. 0.00) NW(MO)=NW(MO)+1	C**** number of wet days in each month
+ND(MO)=ND(MO)+1						C**** number of days in each month
+IF(RAIN) 5,5,3						C**** Is today wet?
+3 IF(RIM1)2,2,4						C**** Is yesterday wet?
+2 NWD(MO)=NWD(MO)+1					C**** If today is wet and yesterday is dry
+GO TO 6
+4 NWW(MO)=NWW(MO)+1					C**** If today is wet and yesterday is wet
+6 CONTINUE
+SUML(MO)=SUML(MO)+ALOG(RAIN)
+SUM(MO)=SUM(MO)+RAIN
+SUM2(MO)=SUM2(MO) + RAIN * RAIN
+SUM3(MO)=SUM3(MO)+RAIN*RAIN*RAIN
+SL(MO) = SL(MO)+ALOG(RAIN)
+GO TO 9
+5 IF(RIM1) 7,7,8
+7 NDD(MO)=NDD(MO)+1
+GO TO 9
+8 NDW(MO)=NDW(MO)+1
+9 RIM1 = RAIN
+30 CONTINUE
+20 CONTINUE
+
+DO 120 I = 1,12
+XXND=ND(I)
+YYNW=NW(I)
+PPPW(I) = YYNW/XXND
+III=1
+IF(NW(I) .LT. 3) III=2
+IC(I) = III
+IF(NW(I) .LT. 3) GO TO 120
+XNWW=NWW(I)
+XNWD=NWD(I)
+XXNW=NWW(I)+NDW(I)
+XND=NDD(I)+NWD(I)
+XNW=NW(I)
+PWW(I)=XNWW/XXNW
+PWD(I)=XNWD/XND
+RBAR(I)=SUM(I)/XNW
+RLBAR(I)=SUML(I)/XNW
+Y=ALOG(RBAR(I))-RLBAR(I)
+ANUM=8.898919+9.05995*Y+0.9775373*Y*Y
+ADOM=Y*(17.79728+11.968477*Y+Y*Y)
+ALPHA2=ANUM/ADOM
+IF(ALPHA2 .GE. 1.0) ALPHA2=0.998
+BETA2=RBAR(I)/ALPHA2
+ALPHA(I)=ALPHA2
+BETA(I)=BETA2
+MU = ALPHA(I) * BETA(I)
+SIGMA = SQRT(ALPHA(I)) * BETA(I)
+120 CONTINUE
+
+WRITE(6,201)
+201 FORMAT(///,8X,'--MARKOV CHAIN-- -GAMMA DIST-',/, 1X,'MONTH P(W/W) P(W/D) MEAN SD',/)
+DO 130 I = 1,12
+WRITE(6,202)DATE(I),MU(I),SIGMA(I))
+202 FORMAT(1X,A4,F8.3,F10.3,11X,F11.3,F7.3,5X,A36)
+130 CONTINUE
+DO 400 J=1,12
+YDATA(1,J)=PWW(J)
+YDATA(2,J)=PWD(J)
+YDATA(3,J)=MU(J)
+YDATA(4,J)=SIGMA(J)
+400 CONTINUE
+RETURN
