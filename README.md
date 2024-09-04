@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PrecipGen Parameter Generator
 
 ## 1. Introduction
@@ -116,3 +117,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## 12. Contact
 For any questions or suggestions, please open an issue or contact the repository owner.
+=======
+# precipgen_par
+Parameter generator for PrecipGen
+>>>>>>> 600b07581ecfb73c125331417aaf0642529c96a9
