@@ -1,67 +1,41 @@
-import tkinter as tk
-from tkinter import filedialog
+from fetch_ghcn import fetch_ghcn_data
+from parse_ghcn import parse_ghcn_data
+from analyze_precip_ts import get_station_info, summarize_dataset
 from pgpar import PrecipGenPAR
 
-def main():
-
-    # Title of the program
-    title = "Parameter Generator for the Precipitation Simulator"
-    version = "version 1.0"
-
-    # Set a fixed width for the border
-    width = 60
-
-    # Create a border made of '*' symbols
-    border = '*' * width
-
-    # Print the bordered title and version
-    print(border)
-    print(f"* {title:<{width-4}} *")  # Use string formatting to pad the title with spaces
-    print(f"* {version:<{width-4}} *")  # Use string formatting to pad the version with spaces
-    print(border)
-
-    # Welcome message
-    print("Welcome to the Precipitation Generator using the PAR model!")
-    # Create a new PGPar object
-    pgpar1 = PrecipGenPAR()
-
-    while True:
-        print("\nPlease choose from the following commands:")
-        print("L: Load Time Series")
-        print("K: Peek at Time Series")
-        print("T: Plot Time Series")
-        print("G: Generate Parameters")
-        print("M: Show Parameters")
-        print("S: Save Parameters")
-        print("X: Exit")
-
-        command = input("Enter command: ").upper()
-
-        if command == 'L':
-            # Load the data
-            # Open a file dialog to request file name from user
-            root = tk.Tk()
-            root.withdraw()  # Hide the main window
-            file_path = filedialog.askopenfilename()
-
-            # Load the data
-            pgpar1.parse_ts_csv(file_path)
-        elif command == 'P':
-            # Peek at the time series
-            pgpar1.print_head()
-        elif command == 'T':
-            # Plot the time series
-            pgpar1.plot_ts()
-        elif command == 'G':
-            # Generate parameters
-            pgpar1.gen_params()
-        elif command == 'X':
-            # Exit the program
-            print("Goodbye!")
-            break
+def main() -> None:
+    station_id = input("Enter the GHCN station ID: ")
+    
+    print(f"Fetching data for station {station_id}...")
+    station_info = get_station_info(station_id)
+    raw_data = fetch_ghcn_data(station_id)
+    
+    if raw_data:
+        df = parse_ghcn_data(raw_data)
+        
+        if df is not None and not df.empty:
+            pgp = PrecipGenPAR(df)
+            summarize_dataset(df, station_info, pgp)
+            
+            units = "inches" if df['PRCP'].max() < 100 else "mm"
+            print(f"\nPrecipitation units: {units}")
+            
+            params = pgp.get_parameters()
+            
+            output_file = f"{station_id}_precipitation_parameters.csv"
+            with open(output_file, 'w') as f:
+                for condition in ['dry', 'all', 'wet']:
+                    f.write(f"{condition.capitalize()} Years Parameters:\n")
+                    params[condition].to_csv(f, index=False)
+                    f.write("\n")
+                    print(f"\n{condition.capitalize()} Years Parameters:")
+                    print(params[condition].to_string(index=False))
+                    print()
+            print(f"\nResults saved to {output_file}")
         else:
-            print("Invalid command. Please try again.")
-
+            print("No valid data to process.")
+    else:
+        print("Failed to fetch data. Please check the station ID and try again.")
 
 if __name__ == "__main__":
     main()

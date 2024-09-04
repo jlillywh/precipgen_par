@@ -8,3 +8,4 @@ pgar_venv/
 # Ignore any other files or directories you don't want to include
 *.docx
 *.gsm
+*.csv
