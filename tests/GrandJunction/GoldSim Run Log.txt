@@ -1,0 +1,36 @@
+GoldSim 14.0.0449
+Simulation Filename:	PrecipGen.gsm
+Simulation Start Time:	10/29/2024 2:13:23 PM
+Simulation Run Time:	1.6 s
+Model Author Name:	GoldSim Technology Group
+Analysis Description:	Version 1.027
+
+*** Simulation Time Settings ***
+Time Basis:  Calendar Time
+Time Unit: day
+Start Date: 1/1/2024
+End Date: 1/1/2025
+Basic Timestep: 1 day
+Reporting Periods: Major & Minor
+Major Period: annually
+Minor Period: monthly
+Scheduled Updates: 367
+Number of Plot Points: 367
+Final Value Capture Times:
+  At the end of the simulation
+
+*** Simulation Monte-Carlo Settings ***
+Simulation Type: Probabilistic (run 100 realizations)
+Latin Hypercube Sampling: enabled (using random points in strata)
+Sampling Sequences: repeated; beginning seed 1
+
+WARNINGS AND ERRORS:
+
+Realization 1
+1/1/2024 0:00:00
+\PrecipGen_Test\Depth\Drought Duration: The result element contains one or more invalid or incomplete result items.
+
+\PrecipGen_Test\Depth\Occur Count: The result element contains one or more invalid or incomplete result items.
+
+\PrecipGen_Test\Depth\Run Avg Final: The result element contains one or more invalid or incomplete result items.
+

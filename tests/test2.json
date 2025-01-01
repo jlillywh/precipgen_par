@@ -1,6 +1,0 @@
-{
-    "units": "mm",
-    "ts_file_path": "C:\\Users\\jason\\PrecipGenPAR_Data\\GHCN_USW00024233.csv",
-    "date_col": "DATE",
-    "precip_col": "PRCP"
-}

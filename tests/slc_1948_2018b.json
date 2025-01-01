@@ -1,6 +1,0 @@
-{
-    "units": "mm",
-    "ts_file_path": "C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/historical_data_modified.csv",
-    "date_col": "DATE",
-    "precip_col": "PRCP"
-}

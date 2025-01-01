@@ -1,371 +1,265 @@
 import pandas as pd
 import numpy as np
-from scipy import stats
-import warnings
-pd.set_option('future.no_silent_downcasting', True)
+from scipy.stats import linregress
 
-class PrecipGenPAR:
-    def __init__(self, df):
-        # Ensure the input is a pandas DataFrame with 'DATE' and 'PRCP' columns
-        if not isinstance(df, pd.DataFrame):
-            raise ValueError("Input must be a pandas DataFrame")
-
-        # The DataFrame must contain 'DATE' and 'PRCP' columns
-        # 'DATE' should be in a format that can be converted to datetime
-        # 'PRCP' should contain precipitation values
-        self.df = df.copy()
-        self.df['DATE'] = pd.to_datetime(self.df['DATE'])
-        self.df.set_index('DATE', inplace=True)
-        
-        self.value_col = 'PRCP'
-        self.params = pd.DataFrame(index=range(12))
-        self.obs_stats = pd.DataFrame()
-
-    def get_obs_stats(self):
-        # Resample to monthly data
-        monthly_data = self.df.resample('ME').sum()
-        
-        print("Monthly data columns:")
-        print(monthly_data.columns)
-
-        # Calculate statistics
-        monthly_stats = monthly_data.groupby(monthly_data.index.strftime('%B')).agg(['min', 'max', 'mean'])
-        
-        print("Monthly stats columns after aggregation:")
-        print(monthly_stats.columns)
-
-        # Flatten the multi-level column names
-        monthly_stats.columns = [f'{col[0]}_{col[1]}' for col in monthly_stats.columns]
-        
-        print("Monthly stats columns after flattening:")
-        print(monthly_stats.columns)
-
-        # Reset the index to turn the month names into a column
-        monthly_stats.reset_index(inplace=True)
-        
-        print("Monthly stats columns after resetting index:")
-        print(monthly_stats.columns)
-
-        # Rename 'index' to 'Month'
-        monthly_stats.rename(columns={'index': 'Month'}, inplace=True)
-
-        # Ensure columns are in the correct order
-        cols_to_use = ['Month', 'PRCP_min', 'PRCP_max', 'PRCP_mean']
-        monthly_stats = monthly_stats[cols_to_use]
-        
-        print("Monthly stats columns after selecting PRCP columns:")
-        print(monthly_stats.columns)
-
-        # Sort the months in the correct order
-        month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
-                       'July', 'August', 'September', 'October', 'November', 'December']
-        monthly_stats['Month'] = pd.Categorical(monthly_stats['Month'], categories=month_order, ordered=True)
-        monthly_stats = monthly_stats.sort_values('Month')
-        
-        # Replace month names with numbers 1-12
-        monthly_stats['Month'] = range(1, len(monthly_stats) + 1)
-        
-        # Rename columns to match expected output
-        monthly_stats.rename(columns={'PRCP_min': 'min', 'PRCP_max': 'max', 'PRCP_mean': 'mean'}, inplace=True)
-        
-        print("Final monthly stats columns:")
-        print(monthly_stats.columns)
-
-        # Calculate the longest runs
-        longest_dry_run = self.longest_run_of_dry_days()
-        longest_wet_run = self.longest_run_of_wet_days()
-
-        # Print the results
-        print(f"Longest run of dry days: {longest_dry_run}")
-        print(f"Longest run of wet days: {longest_wet_run}")
-        
-        return monthly_stats
-            
-    def calculate_monthly_totals(self):
-        monthly_totals = self.df.resample('ME').sum()
-        monthly_totals.index = monthly_totals.index.strftime('%B')
-        monthly_totals = monthly_totals.groupby(monthly_totals.index).mean()
-        monthly_totals = monthly_totals.reindex(pd.Index(pd.date_range(start='2000-01-01', periods=12, freq='ME').strftime('%B')))
-        monthly_totals.index.name = 'Month'
-        return monthly_totals
+def calculate_params(precip_ts):
+    """
+    Calculate pww, pwd, alpha, and beta parameters for each month from a historical precipitation time series.
     
-    def calculate_monthly_distribution(self):
-        monthly_totals = self.calculate_monthly_totals()[self.value_col]
-        distribution = monthly_totals.groupby(monthly_totals.index).apply(lambda x: x.value_counts(normalize=True))
-        distribution = distribution.reset_index()
-        distribution.columns = ['Month', 'Total', 'Probability']
-        return distribution
-
-    def calculate_mean_daily(self):
-        mean_daily = []
-        for month in range(1, 13):
-            monthly_data = self.df[self.df.index.month == month]
-            wet_days = monthly_data[monthly_data[self.value_col] > 0.0]
-            if not wet_days.empty:
-                mean = wet_days[self.value_col].mean()
-            else:
-                mean = 0
-            mean_daily.append(mean)
-            #print(f"Month {month}: Mean = {mean}")
-        self.params['Mean'] = pd.Series(mean_daily)
-
-    def calculate_sd_daily(self):
-        sd_daily = []
-        for month in range(1, 13):
-            monthly_data = self.df[self.df.index.month == month]
-            wet_days = monthly_data[monthly_data[self.value_col] > 0.0]
-            if not wet_days.empty:
-                # Fit a gamma distribution to the wet day precipitation data
-                shape, _, scale = stats.gamma.fit(wet_days[self.value_col], floc=0)
-                # Calculate the standard deviation of the fitted gamma distribution
-                sd = np.sqrt(shape * (scale ** 2))
-            else:
-                sd = 0
-            sd_daily.append(sd)
-        self.params['SD'] = pd.Series(sd_daily)
-
-    def longest_run_of_dry_days(self):
-        """
-        Calculate the longest run of consecutive dry days (precipitation = 0).
+    Parameters:
+    precip_ts : pd.DataFrame
+        Time series DataFrame with 'DATE' as the index and 'PRCP' as the precipitation column.
         
-        Returns:
-            int: The length of the longest run of dry days.
-        """
-        # Identify dry days
-        self.df['is_dry'] = self.df[self.value_col] == 0
-        
-        # Group by consecutive dry days
-        self.df['dry_group'] = (self.df['is_dry'] != self.df['is_dry'].shift()).cumsum()
-        
-        # Calculate the length of each dry run
-        dry_runs = self.df[self.df['is_dry']].groupby('dry_group').size()
-        
-        # Find the maximum length of dry runs
-        max_dry_run = dry_runs.max() if not dry_runs.empty else 0
-        
-        return max_dry_run
+    Returns:
+    params : pd.DataFrame
+        DataFrame of calculated parameters for each month.
+    """
     
-    def longest_run_of_wet_days(self):
-        """
-        Calculate the longest run of consecutive wet days (precipitation > 0).
-        
-        Returns:
-            int: The length of the longest run of wet days.
-        """
-        # Identify wet days
-        self.df['is_wet'] = self.df[self.value_col] > 0
-        
-        # Group by consecutive wet days
-        self.df['wet_group'] = (self.df['is_wet'] != self.df['is_wet'].shift()).cumsum()
-        
-        # Calculate the length of each wet run
-        wet_runs = self.df[self.df['is_wet']].groupby('wet_group').size()
-        
-        # Find the maximum length of wet runs
-        max_wet_run = wet_runs.max() if not wet_runs.empty else 0
-        
-        return max_wet_run
+    # Initialize counters and arrays for monthly statistics
+    sum_precip = np.zeros(12)
+    sum_log_precip = np.zeros(12)
+    wet_day_count = np.zeros(12)
+    nww, nwd, ndw, ndd = np.zeros(12), np.zeros(12), np.zeros(12), np.zeros(12)
 
-    def calculate_wet_dry_days(self):
-        self.df['is_wet'] = self.df[self.value_col] > 0
-        self.df['is_dry'] = self.df[self.value_col] == 0
-        
-        # Use a different approach to shift and fill values
-        self.df['prev_day_wet'] = self.df['is_wet'].shift()
-        self.df['prev_day_dry'] = self.df['is_dry'].shift()
-        
-        # Fill NaN values with False and ensure boolean type
-        self.df['prev_day_wet'] = self.df['prev_day_wet'].fillna(False).astype(bool)
-        self.df['prev_day_dry'] = self.df['prev_day_dry'].fillna(False).astype(bool)
-        
-    def calculate_probabilities(self):
-        self.calculate_wet_dry_days()
-        pww = []
-        pwd = []
-        for month in range(1, 13):
-            monthly_data = self.df[self.df.index.month == month]
-            wet_follows_wet = monthly_data[monthly_data['is_wet'] & monthly_data['prev_day_wet']].shape[0]
-            wet_follows_dry = monthly_data[monthly_data['is_wet'] & monthly_data['prev_day_dry']].shape[0]
-            total_wet_days = monthly_data[monthly_data['is_wet']].shape[0]
-            total_dry_days = monthly_data[monthly_data['is_dry']].shape[0]
+    wet_yesterday = False  # Track if the previous day was wet
+
+    # Iterate over the time series to calculate Pww, Pwd, etc.
+    for t in range(1, len(precip_ts)):
+        current_date = precip_ts.index[t]
+        month = current_date.month - 1  # Zero-based index for months
+        precipitation = precip_ts.loc[current_date, 'PRCP']
+
+        wet_today = precipitation > 0.0
+
+        if wet_today:
+            wet_day_count[month] += 1
+            sum_precip[month] += precipitation
+            sum_log_precip[month] += np.log(precipitation)
+
+        # Track transitions between wet and dry days
+        if wet_yesterday and wet_today:
+            nww[month] += 1
+        elif wet_today and not wet_yesterday:
+            nwd[month] += 1
+        elif not wet_today and wet_yesterday:
+            ndw[month] += 1
+        else:
+            ndd[month] += 1
+
+        wet_yesterday = wet_today
+
+    # Initialize parameters
+    pww, pwd, alpha, beta, rbar, rlbar, y, anum, adom = (
+        np.zeros(12) for _ in range(9)
+    )
+
+    for m in range(12):
+        # Calculate probabilities Pww and Pwd
+        if wet_day_count[m] >= 3:  # Only if there is enough data
+         
+            # Use intermediate variables as per original code
+            xnww, xxnw, xnwd, xnd, xnw = nww[m], nww[m] + ndw[m], nwd[m], ndd[m] + nwd[m], wet_day_count[m]
+
+            pww[m] = xnww / xxnw if xxnw > 0 else 0.0
+            pwd[m] = xnwd / xnd if xnd > 0 else 0.0
             
-            if total_wet_days > 0:
-                pww_value = wet_follows_wet / total_wet_days
+            # Monthly mean precipitation and mean log-precipitation
+            rbar[m] = sum_precip[m] / xnw if xnw > 0 else 0.0
+            rlbar[m] = sum_log_precip[m] / xnw if xnw > 0 else 0.0
+            
+            # Alpha and Beta calculation with y, anum, and adom
+            if rbar[m] > 0:
+                y[m] = np.log(rbar[m]) - rlbar[m]
             else:
-                pww_value = 0
-            
-            if total_dry_days > 0:
-                pwd_value = wet_follows_dry / total_dry_days
+                y[m] = 0.0
+
+            anum[m] = 8.898919 + 9.05995 * y[m] + 0.9775373 * y[m] * y[m]
+            adom[m] = y[m] * (17.79728 + 11.968477 * y[m] + y[m] * y[m])
+            alpha[m] = min(0 if adom[m] <= 0 else anum[m] / adom[m], 0.998)
+            beta[m] = rbar[m] / alpha[m] if alpha[m] > 0 else 0.0
+
+    # Ensure all parameters are positive, and set defaults if necessary
+    pww = np.where(pww <= 0, 0.001, pww)
+    pwd = np.where(pwd <= 0, 0.001, pwd)
+    alpha = np.where(alpha <= 0, 0.001, alpha)
+    beta = np.where(beta <= 0, 0.001, beta)
+
+    # Compile the parameters into a DataFrame for output
+    params = pd.DataFrame({
+        'PWW': pww, 'PWD': pwd, 'ALPHA': alpha, 'BETA': beta
+    }, index=range(1, 13))
+
+    return params
+
+# Helper function to calculate reversion rate from a list of samples
+def calc_reversion_rate(samples):
+    """
+    Estimate the AR(1) coefficient b from X_{t+1} = a + b*X_t +eps
+    and define reversion rate = 1 - b
+    """
+
+    if len(samples) < 2:
+        return np.nan
+    x_t = samples[:-1]
+    x_t1 = samples[1:]
+    slope, intercept, r_value, p_value, std_err = linregress(x_t, x_t1)
+    return 1 - slope # simple definition of "mean reversion" speed
+
+def calculate_window_params(precip_ts, n_years=2):
+    """
+    Slide an N-year window (where N = 1, 2, 3, or 4, etc.) over the entire time series,
+    computing (pww, pwd, alpha, beta) for each window. Shift by 1 year each time, stopping
+    when there aren't N full years left in the data.
+
+    Parameters
+    ----------
+    precip_ts : pd.DataFrame
+        A DataFrame with:
+          - A DatetimeIndex (e.g., named 'DATE')
+          - A column 'PRCP' for daily precipitation
+    n_years : int
+        The number of years in each sliding window. Default is 2.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: [year_start, pww, pwd, alpha, beta]
+        Each row corresponds to one N-year window.
+    """
+
+    pww_samples = []
+    pwd_samples = []
+    alpha_samples = []
+    beta_samples = []
+
+    # Figure out the earliest and latest years in the data
+    start_year = precip_ts.index.year.min()
+    end_year = precip_ts.index.year.max()
+
+    # We'll do an N-year window: from y (inclusive) to y + n_years (exclusive) 
+    # in terms of calendar years. 
+    # Example: if y = 1900 and n_years=2, we cover 1900-01-01 up to but not including 1902-01-01.
+
+    # Stop when the start year + n_years would exceed the end of your data.
+    # So we iterate until `end_year - n_years + 1`.
+    # Initialize counters for aggregated statistics
+    for year in range(start_year, end_year - n_years + 1):
+        # Window start (inclusive): y-01-01
+        # Window end (exclusive): (y + n_years)-01-01
+        win_start_date = f"{year}-01-01"
+        win_end_date = f"{year + n_years}-01-01"
+
+        # Slice out just the N-year chuch of time series
+        window_df = precip_ts.loc[win_start_date:win_end_date]
+
+        # If there's no data in the window, break out of the loop
+        if window_df.empty:
+            break
+
+        # Initialize counters
+        sum_precip = 0.0
+        sum_log_precip = 0.0
+        wet_day_count = 0
+        nww, nwd, ndw, ndd = 0, 0, 0, 0
+
+        wet_yesterday = False  # Track if the previous day was wet
+
+        # Iterate over the time series to calculate aggregated statistics
+        for t in range(1, len(window_df)):
+            precipitation = window_df['PRCP'].iloc[t]
+            wet_today = precipitation > 0.0
+
+            # Count if wet days and sum up precipitation
+            if wet_today:
+                wet_day_count += 1
+                sum_precip += precipitation
+                sum_log_precip += np.log(precipitation)
+
+            # Track transitions between wet and dry days
+            if wet_yesterday and wet_today:
+                nww += 1
+            elif wet_today and not wet_yesterday:
+                nwd += 1
+            elif not wet_today and wet_yesterday:
+                ndw += 1
             else:
-                pwd_value = 0
-            
-            pww.append(pww_value)
-            pwd.append(pwd_value)
-            #print(f"Month {month}: PWW = {pww_value}, PWD = {pwd_value}")
-        
-        self.params['PWW'] = pd.Series(pww)
-        self.params['PWD'] = pd.Series(pwd)
+                ndd += 1
 
-    def calculate_parameters(self, data):
-        params = pd.DataFrame(index=range(12), columns=['Mean', 'SD', 'PWW', 'PWD'])
-        
-        # Create a boolean series for wet days across the entire dataset
-        is_wet_all = (data[self.value_col] > 0).astype(int)
-        
-        for month in range(1, 13):
-            try:
-                monthly_data = data[data.index.month == month]
-                wet_days = monthly_data[monthly_data[self.value_col] > 0]
-                
-                if len(wet_days) > 0:
-                    mean = wet_days[self.value_col].mean()
-                    params.loc[month-1, 'Mean'] = mean
-                    
-                    if len(wet_days) > 1:
-                        std = wet_days[self.value_col].std()
-                        if std > 1e-8:  # Check if there's some variation
-                            try:
-                                with warnings.catch_warnings():
-                                    warnings.filterwarnings('ignore')
-                                    shape, _, scale = stats.gamma.fit(wet_days[self.value_col], floc=0)
-                                params.loc[month-1, 'SD'] = np.sqrt(shape * (scale ** 2))
-                            except ValueError:
-                                # If gamma fitting fails, use sample standard deviation
-                                params.loc[month-1, 'SD'] = std
-                        else:
-                            # If values are very similar, estimate SD as a small fraction of the mean
-                            params.loc[month-1, 'SD'] = mean * 0.01  # You can adjust this factor as needed
-                    else:
-                        # If only one wet day, set SD to a small value
-                        params.loc[month-1, 'SD'] = mean * 0.01  # Again, adjust as needed
-                else:
-                    # No wet days
-                    params.loc[month-1, 'Mean'] = params.loc[month-1, 'SD'] = 0
-            
-                # Calculate PWW and PWD using is_wet_all
-                is_wet_month = is_wet_all[data.index.month == month]
+            wet_yesterday = wet_today
 
-                # Get the last day of the previous month
-                if month == 1:
-                    prev_month = is_wet_all[data.index.month == 12]
-                else:
-                    prev_month = is_wet_all[data.index.month == month-1]
+        # Compute the overall pww and pwd
+        # If denominator is zero, set to 0.001 to avoid division by zero
 
-                if len(prev_month) > 0:
-                    prev_month_last_day = prev_month.iloc[-1]
-                else:
-                    print(f"Warning: No data found for the previous month of month {month} in year {data.index.year[0]}")
-                    if len(is_wet_month) > 0:
-                        prev_month_last_day = is_wet_month.iloc[0]
-                        print(f"Using the first day of the current month ({month}) as the previous day")
-                    else:
-                        print(f"Warning: No data found for the current month {month} in year {data.index.year[0]}")
-                        prev_month_last_day = 0  # or another appropriate default value
-                
-                # Calculate transitions
-                transitions = pd.concat([pd.Series([prev_month_last_day], index=[is_wet_month.index[0] - pd.Timedelta(days=1)]), is_wet_month])
-                
-                wet_to_wet = ((transitions == 1) & (transitions.shift() == 1)).sum()
-                wet_to_dry = ((transitions == 0) & (transitions.shift() == 1)).sum()
-                dry_to_wet = ((transitions == 1) & (transitions.shift() == 0)).sum()
-                dry_to_dry = ((transitions == 0) & (transitions.shift() == 0)).sum()
-                
-                # Calculate probabilities
-                params.loc[month-1, 'PWW'] = wet_to_wet / (wet_to_wet + wet_to_dry) if (wet_to_wet + wet_to_dry) > 0 else 0
-                params.loc[month-1, 'PWD'] = dry_to_wet / (dry_to_wet + dry_to_dry) if (dry_to_wet + dry_to_dry) > 0 else 0
-            except Exception as e:
-                print(f"Error processing month {month} in year {data.index.year[0]}: {str(e)}")
-                print(f"Data for this month: {monthly_data}")
+        ww_plus_dw = nww + ndw
+        wd_plus_dd = nwd + ndd
 
-        # Add a 'Month' column that starts from 1
-        params['Month'] = range(1, 13)
-        
-        # Reorder columns to put 'Month' first
-        params = params[['Month', 'Mean', 'SD', 'PWW', 'PWD']]
+        if ww_plus_dw > 0:
+            pww = nww / ww_plus_dw
+        else:
+            pww = 0.001
+        if wd_plus_dd > 0:
+            pwd = nwd / wd_plus_dd
+        else:
+            pwd = 0.001
 
-        return params
+        # Calculate rbar and rlbar from aggregated sums
+        # Make sure we have at least some wet days to avoid division by zero
+        if wet_day_count > 0:
+            rbar = sum_precip / wet_day_count
+            rlbar = sum_log_precip / wet_day_count
+        else:
+            # In case there are no wet days, set some defaults
+            rbar, rlbar = 0.0, 0.0
 
-    def get_parameters(self, n_years=5):
-        # Calculate annual precipitation using 'YE' instead of 'Y'
-        annual_precip = self.df.resample('YE')[self.value_col].sum()
-        
-        # Identify dry and wet years
-        sorted_years = annual_precip.sort_values()
-        dry_years = sorted_years.head(n_years).index.year
-        wet_years = sorted_years.tail(n_years).index.year
-        
-        # Calculate parameters for each group
-        dry_params = self.calculate_parameters(self.df[self.df.index.year.isin(dry_years)])
-        wet_params = self.calculate_parameters(self.df[self.df.index.year.isin(wet_years)])
-        all_params = self.calculate_parameters(self.df)  # Parameters for all years
-        
-        # Format the parameter DataFrames to match the CSV format
-        def format_params(params):
-            params = params.round(6)  # Round to 6 decimal places
-            return params
-        
-        dry_params = format_params(dry_params)
-        wet_params = format_params(wet_params)
-        all_params = format_params(all_params)
-        
-        return {
-            'dry': dry_params,
-            'wet': wet_params,
-            'all': all_params
-        }
+        # Calculate alpha and beta
+        if rbar > 0:
+            log_term = np.log(rbar) - rlbar
+        else:
+            log_term = 0.0
+
+        anum = 8.898919 + 9.05995 * log_term + 0.9775373 * (log_term**2)
+        adom = log_term * (17.79728 + 11.968477 * log_term + (log_term**2))
+
+        if adom > 0:
+            alpha = min(anum / adom, 0.998)
+        else:
+            alpha = 0.001
+
+        if alpha > 0:
+            beta = rbar / alpha
+        else:
+            beta = 0.001
+
+        # Ensure all are zero or positive
+        if pww <= 0: pww = 0.001
+        if pwd <= 0: pwd = 0.001
+        if alpha <= 0: alpha = 0.001
+        if beta <= 0: beta = 0.001
+
+        # Append samples to the list
+        pww_samples.append(pww)
+        pwd_samples.append(pwd)
+        alpha_samples.append(alpha)
+        beta_samples.append(beta)
     
-    def calculate_yearly_pww_pwd(self):
-        yearly_params = []
-        for i, year in enumerate(self.df.index.year.unique()):
-            if i < 2:  # Only print for the first two years
-                print(f"Processing year: {year}")
-                year_data = self.df[self.df.index.year == year]
-                print(f"Data points in year: {len(year_data)}")
-                params = self.calculate_parameters(year_data)
-                print(f"Parameters for year {year}:")
-                print(params)
-                print("-" * 50)
-            else:
-                params = self.calculate_parameters(self.df[self.df.index.year == year])
-            yearly_params.append(params)
-        return pd.concat(yearly_params, keys=self.df.index.year.unique(), names=['Year', 'Month'])
+    pww_array = np.array(pww_samples)
+    pwd_array = np.array(pwd_samples)
+    alpha_array = np.array(alpha_samples)
+    beta_array = np.array(beta_samples)
 
-    def calculate_pww_pwd_correlation(self):
-        yearly_params = self.calculate_yearly_pww_pwd()
-        correlations = []
-        
-        for year in yearly_params.index.get_level_values('Year').unique():
-            try:
-                year_params = yearly_params.loc[year]
-                correlation = year_params['PWW'].corr(year_params['PWD'])
-                correlations.append(correlation)
-            except Exception as e:
-                print(f"Error calculating correlation for year {year}: {str(e)}")
-                print(f"Year parameters: {year_params}")
-        
-        return np.mean(correlations)
-    
-    def calculate_pww_mean_correlation(self):
-        yearly_params = self.calculate_yearly_pww_pwd()
-        correlations = []
-        
-        for year in yearly_params.index.get_level_values('Year').unique():
-            year_params = yearly_params.loc[year]
-            correlation = year_params['PWW'].corr(year_params['Mean'])
-            correlations.append(correlation)
-        
-        return np.mean(correlations)
+    # Compute volatility (std. dev.)
+    pww_vol = pww_array.std() if len(pww_array) > 1 else np.nan
+    pwd_vol = pwd_array.std() if len(pwd_array) > 1 else np.nan
+    alpha_vol = alpha_array.std() if len(alpha_array) > 1 else np.nan
+    beta_vol = beta_array.std() if len(beta_array) > 1 else np.nan
 
-    def calculate_autocorrelation_ann_precip(self):
-        annual_totals = self.df.resample('YE')[self.value_col].sum().values
-        
-        def autocorr(x, lag):
-            return np.corrcoef(np.array([x[:-lag], x[lag:]]))[0,1]
-        
-        max_lag = min(10, len(annual_totals) // 2)  # Use up to 10 years or half the data length
-        autocorrelations = [autocorr(annual_totals, lag) for lag in range(1, max_lag + 1)]
-        
-        optimal_lag = np.argmax(np.abs(autocorrelations)) + 1
-        autocorrelation = autocorrelations[optimal_lag - 1]
-        
-        return autocorrelation, optimal_lag
+    # Compute reversion rate
+    pww_rev = calc_reversion_rate(pww_array)
+    pwd_rev = calc_reversion_rate(pwd_array)
+    alpha_rev = calc_reversion_rate(alpha_array)
+    beta_rev = calc_reversion_rate(beta_array)
+
+    # Return just these 8 values (no need to see the raw samples)
+    volatilities = [pww_vol, pwd_vol, alpha_vol, beta_vol]
+    reversion_rates = [pww_rev, pwd_rev, alpha_rev, beta_rev]
+    return volatilities, reversion_rates

@@ -1,0 +1,26 @@
+Stations located in arid areas with PRCP, TMAX, and TMIN data for at least 90 years and > 90% coverage:
+Station: USC00024453, Lat: 34.7539, Long: -112.1114, Begin: 1897, End: 2024, Coverage: 95.75%
+Station: USC00026796, Lat: 34.5706, Long: -112.4322, Begin: 1898, End: 2024, Coverage: 98.16%
+Station: USC00029334, Lat: 32.2553, Long: -109.8369, Begin: 1898, End: 2024, Coverage: 95.54%
+Station: USC00044890, Lat: 36.3817, Long: -119.0264, Begin: 1899, End: 2024, Coverage: 97.22%
+Station: USC00046136, Lat: 39.2467, Long: -121.0008, Begin: 1893, End: 2024, Coverage: 98.25%
+Station: USC00047306, Lat: 34.0369, Long: -117.1947, Begin: 1898, End: 2024, Coverage: 95.42%
+Station: USC00047902, Lat: 34.4167, Long: -119.6844, Begin: 1893, End: 2024, Coverage: 96.64%
+Station: USC00050848, Lat: 39.9928, Long: -105.2669, Begin: 1893, End: 2024, Coverage: 96.52%
+Station: USC00051294, Lat: 38.46, Long: -105.2256, Begin: 1893, End: 2024, Coverage: 95.77%
+Station: USC00053662, Lat: 38.5253, Long: -106.9672, Begin: 1893, End: 2024, Coverage: 95.37%
+Station: USC00054770, Lat: 38.0936, Long: -102.6306, Begin: 1893, End: 2024, Coverage: 97.83%
+Station: USC00054834, Lat: 38.0636, Long: -103.2153, Begin: 1893, End: 2024, Coverage: 97.59%
+Station: USC00055722, Lat: 38.4858, Long: -107.8792, Begin: 1895, End: 2024, Coverage: 96.51%
+Station: USC00057167, Lat: 38.0383, Long: -103.6947, Begin: 1893, End: 2024, Coverage: 98.48%
+Station: USC00142213, Lat: 39.6253, Long: -100.4233, Begin: 1895, End: 2024, Coverage: 95.91%
+Station: USC00144464, Lat: 37.9411, Long: -101.2492, Begin: 1893, End: 2024, Coverage: 95.70%
+Station: USC00145906, Lat: 39.8228, Long: -100.5164, Begin: 1893, End: 2024, Coverage: 95.58%
+Station: USC00412121, Lat: 33.6608, Long: -101.2778, Begin: 1893, End: 2024, Coverage: 98.35%
+Station: USC00422101, Lat: 39.2875, Long: -112.6514, Begin: 1893, End: 2024, Coverage: 96.05%
+Station: USC00425065, Lat: 39.5608, Long: -111.8653, Begin: 1893, End: 2024, Coverage: 97.42%
+Station: USC00425402, Lat: 39.2583, Long: -111.6308, Begin: 1893, End: 2024, Coverage: 96.89%
+Station: USC00425733, Lat: 38.5744, Long: -109.5458, Begin: 1893, End: 2024, Coverage: 97.29%
+Station: USC00427516, Lat: 37.1189, Long: -113.6067, Begin: 1893, End: 2024, Coverage: 95.09%
+Station: USW00023066, Lat: 39.1344, Long: -108.5408, Begin: 1900, End: 2024, Coverage: 99.93%
+Station: USW00023271, Lat: 38.5553, Long: -121.4183, Begin: 1877, End: 2024, Coverage: 99.81%

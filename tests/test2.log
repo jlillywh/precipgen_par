@@ -1,8 +1,0 @@
-2024-07-25 14:06:51,183 - PrecipGenPAR - INFO - Configuration updated: units = mm
-2024-07-25 15:15:07,800 - PrecipGenPAR - INFO - Configuration updated: ts_file_path = C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/goldsim_tests/Synthetic_Precip.csv
-2024-07-25 15:15:17,283 - PrecipGenPAR - INFO - CSV file imported and formatted successfully.
-2024-07-26 13:29:13,398 - PrecipGenPAR - INFO - Configuration updated: units = mm
-2024-07-26 13:32:36,533 - PrecipGenPAR - INFO - Configuration updated: ts_file_path = C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/goldsim_tests/Synthetic_Precip.csv
-2024-07-26 13:32:45,622 - PrecipGenPAR - INFO - CSV file imported and formatted successfully.
-2024-07-26 13:32:55,908 - PrecipGenPAR - INFO - Configuration updated: ts_file_path = C:/Users/jason/OneDrive/Documents/Dev/PrecipGenPAR/tests/goldsim_tests/Synthetic_Precip.csv
-2024-07-26 13:34:01,657 - PrecipGenPAR - INFO - CSV file imported and formatted successfully.

@@ -1,9 +1,0 @@
-2024-07-24 14:25:13,119 - PrecipGenPAR - INFO - Configuration updated: units = in
-2024-07-24 14:25:13,148 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in historical_data_modified.csv: The following incomplete years were removed from the dataset: 2024
-2024-07-24 14:27:41,522 - PrecipGenPAR - INFO - Configuration updated: units = mm
-2024-07-24 14:47:58,789 - PrecipGenPAR - INFO - Configuration updated: units = in
-2024-07-24 14:47:58,827 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in historical_data_modified.csv: The following incomplete years were removed from the dataset: 2024
-2024-07-24 14:48:06,116 - PrecipGenPAR - INFO - Configuration updated: units = mm
-2024-07-24 15:58:41,867 - PrecipGenPAR - INFO - Configuration updated: units = in
-2024-07-24 15:58:41,895 - PrecipGenPAR - INFO - Incomplete Years Removed from dataset in historical_data_modified.csv: The following incomplete years were removed from the dataset: 2024
-2024-07-24 15:58:45,573 - PrecipGenPAR - INFO - Configuration updated: units = mm
