@@ -1,44 +1,44 @@
 # main.py
 from time_series import TimeSeries
-from pgpar import calculate_params, calculate_window_params
-import unittest
+from pgpar import params, params_samples, volatility, reversion
+from precip_stats import mean_monthly_totals
+import os
 
-# File path
-file_path = r"C:\Users\jason\OneDrive\Documents\Dev\PrecipGenPAR\tests\USW00023066_data.csv"
+# File path to the input CSV
+file_path = r"C:\Users\jason\OneDrive\Documents\Dev\PrecipGenPAR\tests\USW00023066_data1.csv"
 
-# Load and preprocess the CSV file
-timeseries = TimeSeries()
-timeseries.load_and_preprocess(file_path)
-timeseries.trim(1900, 2023)
+# Ensure the file exists before processing
+if not os.path.exists(file_path):
+    raise FileNotFoundError(f"The file '{file_path}' does not exist. Please check the path.")
 
-# Calculate parameters
-params = calculate_params(timeseries.get_data())
+# Step 1: Load and preprocess the time series
+print("Loading and preprocessing the time series...")
+precip_ts = TimeSeries()
+precip_ts.load_and_preprocess(file_path)
 
-print(f"params:\n {params}")
+# Step 2: Trim the data to complete years (optional, ensures clean data)
+print("Trimming data to complete years...")
+precip_ts.trim(1900, 2023)
 
-stats = calculate_window_params(timeseries.get_data(), 2)
-print(stats)
+# DEBUG: Print monthly mean totals
+print("Calculating monthly mean totals...")
+print(mean_monthly_totals(precip_ts.get_data()))
 
-# Save the parameters to a CSV file
-params.to_csv('params_output.csv', index=False)
+# Step 3: Calculate monthly parameters (12x4 DataFrame)
+print("Calculating monthly parameters...")
+monthly_params = params(precip_ts.get_data())
+print("Monthly Parameters:\n", monthly_params)
 
-# Run all tests from the tests directory
-def run_all_tests():
-    loader = unittest.TestLoader()
-    suite = loader.discover('tests')
-    runner = unittest.TextTestRunner()
-    result = runner.run(suite)
-    
-    print("\nSummary of test results:")
-    print(f"Ran {result.testsRun} test(s)")
-    if result.wasSuccessful():
-        print("All tests passed!")
-    else:
-        print(f"Failures: {len(result.failures)}")
-        print(f"Errors: {len(result.errors)}")
-        for test, err in result.failures + result.errors:
-            print(f"Test: {test}")
-            print(f"Error: {err}")
+# Step 4: Calculate annual parameters (e.g., 123x4 for 123 years of data)
+print("Calculating annual parameters...")
+annual_params_df = params_samples(precip_ts.get_data(), n_years=3)
+print("Annual Parameters:\n", annual_params_df)
 
-if __name__ == '__main__':
-    run_all_tests()
+# Step 5: Compute volatility and reversion from annual parameters
+print("Calculating volatility and reversion rates...")
+volatility_dict = volatility(annual_params_df[['PWW', 'PWD', 'ALPHA', 'BETA']])
+reversion_dict = reversion(annual_params_df[['PWW', 'PWD', 'ALPHA', 'BETA']])
+
+# Step 6: Display results
+print("\nVolatility:\n", volatility_dict)
+print("\nReversion Rates:\n", reversion_dict)

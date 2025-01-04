@@ -1,265 +1,360 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import linregress
+import logging
+from typing import Dict
 
-def calculate_params(precip_ts):
+# Configure logging
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def gather_daily_stats(precip_series: pd.Series, wet_yesterday: bool) -> tuple[int, float, float, int, int, int, int, bool]:
     """
-    Calculate pww, pwd, alpha, and beta parameters for each month from a historical precipitation time series.
-    
+    Gather daily statistics for the given precipitation data.
+
     Parameters:
-    precip_ts : pd.DataFrame
-        Time series DataFrame with 'DATE' as the index and 'PRCP' as the precipitation column.
-        
+    ----------
+    precip_series : pd.Series
+        A pandas Series containing daily precipitation values for a specific month.
+        The index should represent dates.
+
     Returns:
-    params : pd.DataFrame
-        DataFrame of calculated parameters for each month.
+    -------
+    Tuple[int, float, float, int, int, int, int]
+        A tuple of statistics required for parameter computation:
+        (wet_day_count, sum_precip, sum_log_precip, nww, nwd, ndw, ndd)
+
+        - wet_day_count: Number of wet days (> 0.0 precipitation).
+        - sum_precip: Total precipitation during the period.
+        - sum_log_precip: Sum of log(precipitation) for wet days.
+        - nww: Number of transitions from wet day to wet day.
+        - nwd: Number of transitions from wet day to dry day.
+        - ndw: Number of transitions from dry day to wet day.
+        - ndd: Number of transitions from dry day to dry day.
+        - wet_yesterday: The state of "wetness" on the last day of this month.
+
+    Notes:
+    -----
+    - Unit dimensions are not important as long as they are consistent.
+    - Assumes the Series is sorted by date.
     """
-    
-    # Initialize counters and arrays for monthly statistics
-    sum_precip = np.zeros(12)
-    sum_log_precip = np.zeros(12)
-    wet_day_count = np.zeros(12)
-    nww, nwd, ndw, ndd = np.zeros(12), np.zeros(12), np.zeros(12), np.zeros(12)
+    # Initialize counters and accumulators
+    wet_day_count = 0
+    sum_precip = 0.0
+    sum_log_precip = 0.0
+    nww = nwd = ndw = ndd = 0
 
-    wet_yesterday = False  # Track if the previous day was wet
-
-    # Iterate over the time series to calculate Pww, Pwd, etc.
-    for t in range(1, len(precip_ts)):
-        current_date = precip_ts.index[t]
-        month = current_date.month - 1  # Zero-based index for months
-        precipitation = precip_ts.loc[current_date, 'PRCP']
-
+     # Iterate through all days
+    for precipitation in precip_series:
         wet_today = precipitation > 0.0
 
         if wet_today:
-            wet_day_count[month] += 1
-            sum_precip[month] += precipitation
-            sum_log_precip[month] += np.log(precipitation)
+            wet_day_count += 1
+            sum_precip += precipitation
+            sum_log_precip += np.log(precipitation)
 
-        # Track transitions between wet and dry days
+        # Transition counters
         if wet_yesterday and wet_today:
-            nww[month] += 1
+            nww += 1
         elif wet_today and not wet_yesterday:
-            nwd[month] += 1
+            nwd += 1
         elif not wet_today and wet_yesterday:
-            ndw[month] += 1
+            ndw += 1
         else:
-            ndd[month] += 1
+            ndd += 1
 
+        # Update "yesterday" for the next iteration
         wet_yesterday = wet_today
 
-    # Initialize parameters
-    pww, pwd, alpha, beta, rbar, rlbar, y, anum, adom = (
-        np.zeros(12) for _ in range(9)
-    )
+    return wet_day_count, sum_precip, sum_log_precip, nww, nwd, ndw, ndd, wet_yesterday
 
-    for m in range(12):
-        # Calculate probabilities Pww and Pwd
-        if wet_day_count[m] >= 3:  # Only if there is enough data
-         
-            # Use intermediate variables as per original code
-            xnww, xxnw, xnwd, xnd, xnw = nww[m], nww[m] + ndw[m], nwd[m], ndd[m] + nwd[m], wet_day_count[m]
-
-            pww[m] = xnww / xxnw if xxnw > 0 else 0.0
-            pwd[m] = xnwd / xnd if xnd > 0 else 0.0
-            
-            # Monthly mean precipitation and mean log-precipitation
-            rbar[m] = sum_precip[m] / xnw if xnw > 0 else 0.0
-            rlbar[m] = sum_log_precip[m] / xnw if xnw > 0 else 0.0
-            
-            # Alpha and Beta calculation with y, anum, and adom
-            if rbar[m] > 0:
-                y[m] = np.log(rbar[m]) - rlbar[m]
-            else:
-                y[m] = 0.0
-
-            anum[m] = 8.898919 + 9.05995 * y[m] + 0.9775373 * y[m] * y[m]
-            adom[m] = y[m] * (17.79728 + 11.968477 * y[m] + y[m] * y[m])
-            alpha[m] = min(0 if adom[m] <= 0 else anum[m] / adom[m], 0.998)
-            beta[m] = rbar[m] / alpha[m] if alpha[m] > 0 else 0.0
-
-    # Ensure all parameters are positive, and set defaults if necessary
-    pww = np.where(pww <= 0, 0.001, pww)
-    pwd = np.where(pwd <= 0, 0.001, pwd)
-    alpha = np.where(alpha <= 0, 0.001, alpha)
-    beta = np.where(beta <= 0, 0.001, beta)
-
-    # Compile the parameters into a DataFrame for output
-    params = pd.DataFrame({
-        'PWW': pww, 'PWD': pwd, 'ALPHA': alpha, 'BETA': beta
-    }, index=range(1, 13))
-
-    return params
-
-# Helper function to calculate reversion rate from a list of samples
-def calc_reversion_rate(samples):
+def compute_4params(
+    wet_count: int, 
+    sum_precip: float, 
+    sum_log_precip: float, 
+    nww: int, 
+    nwd: int, 
+    ndw: int, 
+    ndd: int
+) -> tuple[float, float, float, float]:
     """
-    Estimate the AR(1) coefficient b from X_{t+1} = a + b*X_t +eps
-    and define reversion rate = 1 - b
-    """
+    Convert gathered stats into pww, pwd, alpha, and beta.
 
-    if len(samples) < 2:
-        return np.nan
-    x_t = samples[:-1]
-    x_t1 = samples[1:]
-    slope, intercept, r_value, p_value, std_err = linregress(x_t, x_t1)
-    return 1 - slope # simple definition of "mean reversion" speed
-
-def calculate_window_params(precip_ts, n_years=2):
-    """
-    Slide an N-year window (where N = 1, 2, 3, or 4, etc.) over the entire time series,
-    computing (pww, pwd, alpha, beta) for each window. Shift by 1 year each time, stopping
-    when there aren't N full years left in the data.
-
-    Parameters
+    Parameters:
     ----------
-    precip_ts : pd.DataFrame
-        A DataFrame with:
-          - A DatetimeIndex (e.g., named 'DATE')
-          - A column 'PRCP' for daily precipitation
-    n_years : int
-        The number of years in each sliding window. Default is 2.
+    wet_count : int
+        Total number of wet days.
+    sum_precip : float
+        Total precipitation over wet days.
+    sum_log_precip : float
+        Sum of the logarithm of precipitation values for wet days.
+    nww : int
+        Number of transitions from wet to wet.
+    nwd : int
+        Number of transitions from wet to dry.
+    ndw : int
+        Number of transitions from dry to wet.
+    ndd : int
+        Number of transitions from dry to dry.
 
-    Returns
+    Returns:
     -------
-    pd.DataFrame
-        Columns: [year_start, pww, pwd, alpha, beta]
-        Each row corresponds to one N-year window.
+    Tuple[float, float, float, float]
+        The four parameters: (pww, pwd, alpha, beta).
+        - pww: Probability of wet day following a wet day.
+        - pwd: Probability of wet day following a dry day.
+        - alpha: Shape parameter for gamma distribution of precipitation.
+        - beta: Scale parameter for gamma distribution of precipitation.
+
+    Notes:
+    -----
+    - Ensures all returned parameters are non-zero and positive to avoid issues with downstream calculations.
     """
+    # --- Conditional Handling for Low Wet-Day Count ---
+    if wet_count < 3:
+        pww = 0.00
+        pwd = 0.00
+        alpha = 0.001
+        beta = 0.001
+        return pww, pwd, alpha, beta
+    
+    # --- Calculate Transition Probabilities ---
+    ww_plus_dw = nww + ndw  # Total transitions from wet
+    wd_plus_dd = nwd + ndd  # Total transitions from dry
+    pww = nww / ww_plus_dw if ww_plus_dw else 0.0
+    pwd = nwd / wd_plus_dd if wd_plus_dd else 0.0
 
-    pww_samples = []
-    pwd_samples = []
-    alpha_samples = []
-    beta_samples = []
+    # --- Calculate Means ---
+    if wet_count > 0:
+        rbar = sum_precip / wet_count  # Mean precipitation
+        rlbar = sum_log_precip / wet_count  # Mean log precipitation
+    else:
+        rbar = rlbar = 0.0
 
-    # Figure out the earliest and latest years in the data
-    start_year = precip_ts.index.year.min()
-    end_year = precip_ts.index.year.max()
-
-    # We'll do an N-year window: from y (inclusive) to y + n_years (exclusive) 
-    # in terms of calendar years. 
-    # Example: if y = 1900 and n_years=2, we cover 1900-01-01 up to but not including 1902-01-01.
-
-    # Stop when the start year + n_years would exceed the end of your data.
-    # So we iterate until `end_year - n_years + 1`.
-    # Initialize counters for aggregated statistics
-    for year in range(start_year, end_year - n_years + 1):
-        # Window start (inclusive): y-01-01
-        # Window end (exclusive): (y + n_years)-01-01
-        win_start_date = f"{year}-01-01"
-        win_end_date = f"{year + n_years}-01-01"
-
-        # Slice out just the N-year chuch of time series
-        window_df = precip_ts.loc[win_start_date:win_end_date]
-
-        # If there's no data in the window, break out of the loop
-        if window_df.empty:
-            break
-
-        # Initialize counters
-        sum_precip = 0.0
-        sum_log_precip = 0.0
-        wet_day_count = 0
-        nww, nwd, ndw, ndd = 0, 0, 0, 0
-
-        wet_yesterday = False  # Track if the previous day was wet
-
-        # Iterate over the time series to calculate aggregated statistics
-        for t in range(1, len(window_df)):
-            precipitation = window_df['PRCP'].iloc[t]
-            wet_today = precipitation > 0.0
-
-            # Count if wet days and sum up precipitation
-            if wet_today:
-                wet_day_count += 1
-                sum_precip += precipitation
-                sum_log_precip += np.log(precipitation)
-
-            # Track transitions between wet and dry days
-            if wet_yesterday and wet_today:
-                nww += 1
-            elif wet_today and not wet_yesterday:
-                nwd += 1
-            elif not wet_today and wet_yesterday:
-                ndw += 1
-            else:
-                ndd += 1
-
-            wet_yesterday = wet_today
-
-        # Compute the overall pww and pwd
-        # If denominator is zero, set to 0.001 to avoid division by zero
-
-        ww_plus_dw = nww + ndw
-        wd_plus_dd = nwd + ndd
-
-        if ww_plus_dw > 0:
-            pww = nww / ww_plus_dw
-        else:
-            pww = 0.001
-        if wd_plus_dd > 0:
-            pwd = nwd / wd_plus_dd
-        else:
-            pwd = 0.001
-
-        # Calculate rbar and rlbar from aggregated sums
-        # Make sure we have at least some wet days to avoid division by zero
-        if wet_day_count > 0:
-            rbar = sum_precip / wet_day_count
-            rlbar = sum_log_precip / wet_day_count
-        else:
-            # In case there are no wet days, set some defaults
-            rbar, rlbar = 0.0, 0.0
-
-        # Calculate alpha and beta
-        if rbar > 0:
-            log_term = np.log(rbar) - rlbar
-        else:
-            log_term = 0.0
-
+    # --- Compute Alpha and Beta ---
+    if rbar > 0:
+        log_term = np.log(rbar) - rlbar
         anum = 8.898919 + 9.05995 * log_term + 0.9775373 * (log_term**2)
         adom = log_term * (17.79728 + 11.968477 * log_term + (log_term**2))
+        alpha = min(anum / adom, 0.998) if adom > 0 else 0.001
+        beta = rbar / alpha if alpha > 0 else 0.001
+    else:
+        alpha = beta = 0.001
 
-        if adom > 0:
-            alpha = min(anum / adom, 0.998)
+    return pww, pwd, alpha, beta
+
+def params(precip_ts: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate parameters for each month from the time series data,
+    preserving the state of wet_yesterday across months and years.
+
+    Parameters:
+    ----------
+    precip_ts : pd.DataFrame
+        A DataFrame with 'DATE' as the index and 'VALUE' as the column.
+
+    Returns:
+    -------
+    pd.DataFrame
+        A 12x4 DataFrame of [pww, pwd, alpha, beta].
+        Index = 1..12 for months.
+    """
+    # Initialize lists to store results for each month
+    monthly_stats = {month: {'wet_day_count': 0, 'sum_precip': 0.0, 'sum_log_precip': 0.0, 'nww': 0, 'nwd': 0, 'ndw': 0, 'ndd': 0} for month in range(1, 13)}
+    wet_yesterday = False  # Initial state
+
+    # Iterate through the time series chronologically
+    for date, precipitation in precip_ts['VALUE'].items():
+        month = date.month
+        wet_today = precipitation > 0.0
+
+        # Update stats for the current month
+        if wet_today:
+            monthly_stats[month]['wet_day_count'] += 1
+            monthly_stats[month]['sum_precip'] += precipitation
+            monthly_stats[month]['sum_log_precip'] += np.log(precipitation)
+
+        # Transition counters
+        if wet_yesterday and wet_today:
+            monthly_stats[month]['nww'] += 1
+        elif wet_today and not wet_yesterday:
+            monthly_stats[month]['nwd'] += 1
+        elif not wet_today and wet_yesterday:
+            monthly_stats[month]['ndw'] += 1
         else:
-            alpha = 0.001
+            monthly_stats[month]['ndd'] += 1
 
-        if alpha > 0:
-            beta = rbar / alpha
-        else:
-            beta = 0.001
+        # Update "wet_yesterday" for the next day
+        wet_yesterday = wet_today
 
-        # Ensure all are zero or positive
-        if pww <= 0: pww = 0.001
-        if pwd <= 0: pwd = 0.001
-        if alpha <= 0: alpha = 0.001
-        if beta <= 0: beta = 0.001
+    # Compute parameters for each month
+    pww_list, pwd_list, alpha_list, beta_list = [], [], [], []
+    for month in range(1, 13):
+        stats = monthly_stats[month]
+        pww_, pwd_, alpha_, beta_ = compute_4params(
+            stats['wet_day_count'],
+            stats['sum_precip'],
+            stats['sum_log_precip'],
+            stats['nww'],
+            stats['nwd'],
+            stats['ndw'],
+            stats['ndd']
+        )
+        pww_list.append(pww_)
+        pwd_list.append(pwd_)
+        alpha_list.append(alpha_)
+        beta_list.append(beta_)
 
-        # Append samples to the list
-        pww_samples.append(pww)
-        pwd_samples.append(pwd)
-        alpha_samples.append(alpha)
-        beta_samples.append(beta)
-    
-    pww_array = np.array(pww_samples)
-    pwd_array = np.array(pwd_samples)
-    alpha_array = np.array(alpha_samples)
-    beta_array = np.array(beta_samples)
+    # Compile results into a DataFrame
+    df = pd.DataFrame({
+        'PWW': pww_list,
+        'PWD': pwd_list,
+        'ALPHA': alpha_list,
+        'BETA': beta_list
+    }, index=range(1, 13))
 
-    # Compute volatility (std. dev.)
-    pww_vol = pww_array.std() if len(pww_array) > 1 else np.nan
-    pwd_vol = pwd_array.std() if len(pwd_array) > 1 else np.nan
-    alpha_vol = alpha_array.std() if len(alpha_array) > 1 else np.nan
-    beta_vol = beta_array.std() if len(beta_array) > 1 else np.nan
+    return df
 
-    # Compute reversion rate
-    pww_rev = calc_reversion_rate(pww_array)
-    pwd_rev = calc_reversion_rate(pwd_array)
-    alpha_rev = calc_reversion_rate(alpha_array)
-    beta_rev = calc_reversion_rate(beta_array)
+def params_samples(precip_ts: pd.DataFrame, n_years: int = 1) -> pd.DataFrame:
+    """
+    Slide an n_years window over the time series. For each window,
+    compute the 4 parameters (PWW, PWD, ALPHA, BETA).
 
-    # Return just these 8 values (no need to see the raw samples)
-    volatilities = [pww_vol, pwd_vol, alpha_vol, beta_vol]
-    reversion_rates = [pww_rev, pwd_rev, alpha_rev, beta_rev]
-    return volatilities, reversion_rates
+    Parameters:
+    ----------
+    precip_ts : pd.DataFrame
+        A DataFrame with 'DATE' as the index and 'VALUE' as the column.
+        The DataFrame should be sorted by date.
+
+    n_years : int, optional
+        Number of years to include in each sliding window. Default is 1.
+
+    Returns:
+    -------
+    pd.DataFrame
+        A DataFrame with one row per window:
+        ['YR', 'PWW', 'PWD', 'ALPHA', 'BETA']
+
+        - YR : int
+          The starting year of the window.
+        - PWW : float
+          Probability of wet day following a wet day.
+        - PWD : float
+          Probability of wet day following a dry day.
+        - ALPHA : float
+          Shape parameter for gamma distribution of precipitation.
+        - BETA : float
+          Scale parameter for gamma distribution of precipitation.
+
+    Notes:
+    -----
+    - Skips windows with insufficient data (e.g., less than 2 valid days).
+    - Preserves the wet_yesterday state across sliding windows.
+    - Assumes the DataFrame is continuous and indexed by 'DATE'.
+    """
+    results = []  # List to store results for each sliding window
+    wet_yesterday = False  # Initial state before the first window
+
+    # Determine the range of years in the dataset
+    start_year = precip_ts.index.year.min()
+    end_year   = precip_ts.index.year.max()
+
+    # Iterate through each sliding window
+    for y in range(start_year, end_year - n_years + 1):
+        # Define the start and end of the window
+        start_date = f"{y}-01-01"
+        end_date   = f"{y + n_years - 1}-12-31"  # Inclusive end date
+        window_df  = precip_ts.loc[start_date:end_date]
+
+        # Skip windows with insufficient data
+        if len(window_df) < 2:
+            print(f"Skipping window {start_date} to {end_date} due to insufficient data.")
+            continue
+
+        # Gather statistics and compute the parameters
+        stats = gather_daily_stats(window_df['VALUE'], wet_yesterday) 
+        wet_day_count, sum_precip, sum_log_precip, nww, nwd, ndw, ndd, wet_yesterday = stats
+
+        # Compute the parameters
+        pww_, pwd_, alpha_, beta_ = compute_4params(
+            wet_day_count, sum_precip, sum_log_precip, nww, nwd, ndw, ndd
+        )
+
+        # Append the results for the current window
+        results.append([y, pww_, pwd_, alpha_, beta_])
+
+    # Convert results to a DataFrame
+    df = pd.DataFrame(results, columns=['yr','PWW','PWD','ALPHA','BETA'])
+    return df
+
+def reversion(params_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Reversion Rate (1 - AR(1) slope):
+    - Measures how quickly a time series returns to its long-term average.
+    - High reversion rate (close to 1): The system quickly "forgets" past values.
+    - Low reversion rate (close to 0): The system is highly persistent and depends strongly on past conditions.
+
+    For more details, refer to:
+    - Wilks, D. S. (2011). Statistical Methods in the Atmospheric Sciences (3rd Edition).
+    - Online: https://en.wikipedia.org/wiki/Autoregressive_model
+
+    Parameters:
+    ----------
+    params_df : pd.DataFrame
+        A DataFrame with columns = [PWW, PWD, ALPHA, BETA].
+
+    Returns:
+    -------
+    pd.DataFrame
+        A DataFrame where columns are parameter names and values are the reversion rates.
+    """
+    rev_df = pd.DataFrame(columns=['PWW', 'PWD', 'ALPHA', 'BETA'], index=[0])
+
+    for col in rev_df.columns:
+        series = params_df[col].values
+
+        # Skip if there are fewer than 2 samples
+        if len(series) < 2:
+            rev_df.at[0, col] = np.nan
+            continue
+
+        # Calculate AR(1) slope using linear regression
+        x_t = series[:-1]  # Current time step
+        x_t1 = series[1:]  # Next time step
+        slope, intercept, r_value, p_value, std_err = linregress(x_t, x_t1)
+
+        # Reversion rate is (1 - slope)
+        rev_df.at[0, col] = 1 - slope
+
+    return rev_df
+
+def volatility(params_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Volatility:
+    - Measures the variability or spread of a time series (calculated as the standard deviation).
+    - High volatility: The parameter varies widely over time (e.g., more inconsistent precipitation patterns).
+    - Low volatility: The parameter is more stable and consistent over time.
+
+    This provides insights into how predictable or unpredictable a parameter is.
+
+    For more details, refer to:
+    - Wilks, D. S. (2011). Statistical Methods in the Atmospheric Sciences (3rd Edition).
+    - Online: https://en.wikipedia.org/wiki/Standard_deviation
+
+    Parameters:
+    ----------
+    params_df : pd.DataFrame
+        A DataFrame with columns = [PWW, PWD, ALPHA, BETA].
+
+    Returns:
+    -------
+    pd.DataFrame
+        A DataFrame where columns are parameter names and values are the volatilities.
+    """
+    vol_df = pd.DataFrame(columns=['PWW', 'PWD', 'ALPHA', 'BETA'], index=[0])
+
+    for col in vol_df.columns:
+        series = params_df[col].values
+        vol_df.at[0, col] = np.std(series) if len(series) > 1 else np.nan
+
+    return vol_df
