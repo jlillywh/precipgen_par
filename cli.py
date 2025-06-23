@@ -24,6 +24,7 @@ from ghcn_data import GHCNData
 from find_ghcn_stations import filter_stations_by_climate_zone, read_inventory, get_climate_zones
 from find_stations import fetch_ghcn_inventory, parse_ghcn_inventory, fetch_station_data, analyze_data_format
 from gap_analyzer import analyze_gaps
+from data_filler import fill_precipitation_data  # Add import for data filler
 
 
 def get_output_path(filename, subdirectory="tests"):
@@ -913,6 +914,56 @@ def cmd_wave_analysis(args):
     return 0
 
 
+def cmd_fill_data(args):
+    """Fill missing values in precipitation data using meteorological best practices."""
+    print(f"Filling missing data in {args.input_file}...")
+    
+    # Check if input file exists
+    if not os.path.exists(args.input_file):
+        print(f"Error: Input file '{args.input_file}' not found")
+        return 1
+    
+    # Fill missing data
+    report = fill_precipitation_data(
+        input_file=args.input_file,
+        output_file=args.output,
+        date_col=args.date_col,
+        precip_col=args.precip_col,
+        max_fill_gap_days=args.max_gap_days,
+        min_similarity_threshold=args.min_similarity,
+        seasonal_window_days=args.seasonal_window,
+        min_years_for_climatology=args.min_years_climatology
+    )
+    
+    # Print summary
+    print("\nData Filling Summary:")
+    print("-" * 40)
+    print(f"Original missing values: {report['summary']['original_missing_values']}")
+    print(f"Final missing values: {report['summary']['final_missing_values']}")
+    print(f"Values filled: {report['summary']['values_filled']}")
+    print(f"Success rate: {report['summary']['fill_success_rate']:.1f}%")
+    
+    print(f"\nMethods used:")
+    for method, count in report['methods_used'].items():
+        if count > 0:
+            print(f"  {method.replace('_', ' ').title()}: {count}")
+    
+    print(f"\nQuality metrics:")
+    validation = report['validation_results']
+    print(f"  Statistical quality: {'Good' if validation['quality_good'] else 'Review needed'}")
+    print(f"  Negative values: {validation['filled_data_negative']}")
+    print(f"  Extreme values: {validation['filled_data_extreme']}")
+    
+    if report['recommendations']:
+        print(f"\nRecommendations:")
+        for rec in report['recommendations']:
+            print(f"  • {rec}")
+    
+    print(f"\nFilled data saved to: {args.output}")
+    report_file = args.output.replace('.csv', '_filling_report.json')
+    print(f"Detailed report saved to: {report_file}")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -931,6 +982,9 @@ Examples:
   %(prog)s find-stations temperate --download -o temperate_stations.csv
   %(prog)s download-station USW00023066 -o denver_data.csv
   %(prog)s station-info USW00023066
+  
+  # Fill missing data
+  %(prog)s fill-data data.csv -o filled_data.csv
         """
     )
     
@@ -1079,15 +1133,64 @@ Examples:
     station_info_parser.add_argument('station_id', help='GHCN station ID (e.g., USW00023066)')
     station_info_parser.set_defaults(func=cmd_station_info)
   
+    # Data filling subparser
+    fill_parser = subparsers.add_parser(
+        'fill-data',
+        help='Fill missing values in precipitation data using meteorological best practices'
+    )
+    fill_parser.add_argument('input_file', help='Input CSV file with missing data')
+    fill_parser.add_argument('-o', '--output', required=True, help='Output file for filled data')
+    fill_parser.add_argument('--date-col', default='DATE', help='Date column name (default: DATE)')
+    fill_parser.add_argument('--precip-col', default='PRCP', help='Precipitation column name (default: PRCP)')
+    fill_parser.add_argument('--max-gap-days', type=int, default=30, 
+                           help='Maximum gap size to attempt filling (default: 30)')
+    fill_parser.add_argument('--min-similarity', type=float, default=0.7,
+                           help='Minimum similarity threshold for analogous years (default: 0.7)')
+    fill_parser.add_argument('--seasonal-window', type=int, default=15,
+                           help='Days around target date for climatological normal (default: 15)')
+    fill_parser.add_argument('--min-years-climatology', type=int, default=10,
+                           help='Minimum years needed for climatological normal (default: 10)')
+    fill_parser.set_defaults(func=cmd_fill_data)
+  
     # Parse arguments
     args = parser.parse_args()
     
     if not args.command:
         parser.print_help()
-        return 1
-    
+        return
+
     try:
-        return args.func(args)
+        if args.command == 'params':
+            cmd_params(args)
+        elif args.command == 'window':
+            cmd_window_params(args)
+        elif args.command == 'ext-params':
+            cmd_ext_params(args)
+        elif args.command == 'info':
+            cmd_info(args)
+        elif args.command == 'test':
+            cmd_test(args)
+        elif args.command == 'ghcn-info':
+            cmd_ghcn_info(args)
+        elif args.command == 'fetch-inventory':
+            cmd_fetch_inventory(args)
+        elif args.command == 'parse-inventory':
+            cmd_parse_inventory(args)
+        elif args.command == 'analyze-format':
+            cmd_analyze_format(args)
+        elif args.command == 'find-stations':
+            cmd_find_stations(args)
+        elif args.command == 'find-stations-radius':
+            cmd_find_stations_radius(args)
+        elif args.command == 'batch-gap-analysis':
+            cmd_batch_gap_analysis(args)
+        elif args.command == 'download-station':
+            cmd_download_station(args)
+        elif args.command == 'fill-data':
+            cmd_fill_data(args)
+        else:
+            parser.print_help()
+            return 1
     except KeyboardInterrupt:
         print("\n\nOperation cancelled by user.")
         return 1
