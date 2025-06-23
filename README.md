@@ -1,8 +1,7 @@
-<<<<<<< HEAD
 # PrecipGen Parameter Generator
 
 ## 1. Introduction
-The `PrecipGenPAR` program produces the input poarameters needed to run a stochastic precipitation simulator called "PrecipGen." PrecipGen is a first-order, 2-state Markov chain-gamma model that simulates daily precipitation for a long-term simulation at a single point on the earth. A Markov process models the change between 2 states (wet vs dry) randomly over time and the probability of a state change depends on the previous state. Precipitation rate is modeled by sampling from a gamma probability distribution. Leveraging the foundational work of Dee Allen Wright and the WGEN model from 1983, implemented in FORTRAN, this program inherits a legacy of reliability in precipitation simulation. This implementation has the added option to incorporate long-term cyclic behavior, based correlations found in the historical record.
+The `PrecipGenPAR` program produces the input parameters needed to run a stochastic precipitation simulator called "PrecipGen." PrecipGen is a first-order, 2-state Markov chain-gamma model that simulates daily precipitation for a long-term simulation at a single point on the earth. A Markov process models the change between 2 states (wet vs dry) randomly over time and the probability of a state change depends on the previous state. Precipitation rate is modeled by sampling from a gamma probability distribution. Leveraging the foundational work of Dee Allen Wright and the WGEN model from 1983, implemented in FORTRAN, this program inherits a legacy of reliability in precipitation simulation. This implementation has the added option to incorporate long-term cyclic behavior, based correlations found in the historical record.
 
 ## 2. Design
 The system consists of two main components: the Parameter Calculator "PrecipGenPAR" and the Precipitation Simulator "PrecipGen".
@@ -71,7 +70,7 @@ When the simulation is complete, the results are stored in a text file as a time
 
     - The script will fetch and process the data, then save the results to a CSV file named `<station_id>_precipitation_parameters.csv`.
 
-### 9.3 Example
+### 4.3 Example
 
 ```sh
 $ python pgpar_cmd.py
@@ -98,26 +97,23 @@ Annual Precipitation Autocorrelation:
 Results saved to USW00094728_precipitation_parameters.csv
 ```
 
-## 4. Testing
+## 5. Testing
 The `PrecipGen` project includes a suite of tests to verify its functionality. Here are the testing requirements:
 
 To run the tests, use the following command: `python -m unittest discover`
 
-## 10. Contributing
+## 6. Contributing
 Contributions are welcome! Please follow these steps:
 
-Fork the repository.
-Create a new branch (git checkout -b feature-branch).
-Make your changes.
-Commit your changes (git commit -am 'Add new feature').
-Push to the branch (git push origin feature-branch).
-Create a new Pull Request.
-## 11. License
+1. Fork the repository.
+2. Create a new branch (git checkout -b feature-branch).
+3. Make your changes.
+4. Commit your changes (git commit -am 'Add new feature').
+5. Push to the branch (git push origin feature-branch).
+6. Create a new Pull Request.
+
+## 7. License
 This project is licensed under the MIT License. See the LICENSE file for details.
 
-## 12. Contact
+## 8. Contact
 For any questions or suggestions, please open an issue or contact the repository owner.
-=======
-# precipgen_par
-Parameter generator for PrecipGen
->>>>>>> 600b07581ecfb73c125331417aaf0642529c96a9

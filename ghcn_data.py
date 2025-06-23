@@ -169,8 +169,8 @@ class GHCNData:
     def get_dataframe(self) -> pd.DataFrame:
         """Return a pandas dataframe of the time series."""
         return self.data
-
-    def save_to_csv(self):
+    
+    def save_to_csv(self, filename=None):
         """Save the GHCNData object to a CSV file."""
         if self.data is None:
             print("No data available. Please fetch data first.")
@@ -180,8 +180,11 @@ class GHCNData:
             print("No station ID available. Please fetch data for a station first.")
             return
         
+        # Use provided filename or default output_path
+        output_file = filename if filename else self.output_path
+        
         metadata = self._prepare_metadata()
-        with open(self.output_path, 'w', newline='') as f:
+        with open(output_file, 'w', newline='') as f:
             # Write metadata
             for row in metadata:
                 f.write(','.join(map(str, row)) + '\n')

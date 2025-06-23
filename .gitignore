@@ -1,11 +1,73 @@
-# Ignore Python cache files
-__pycache__/
-*.pyc
-
-# Ignore virtual environment directory
+# Virtual Environment
+.venv/
+venv/
+pgpar_env/
 pgar_venv/
+ENV/
+env/
 
-# Ignore any other files or directories you don't want to include
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Project specific
+params_output.csv
+*.log
+temp_*
+test_output_*
+ghcnd-inventory.txt
 *.docx
 *.gsm
-*.csv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# But keep test data
+!tests/GrandJunction/

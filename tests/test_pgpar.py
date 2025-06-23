@@ -14,7 +14,7 @@ from pgpar import calculate_params
 class TestPrecipGenPAR(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.file_path = os.path.join(os.path.dirname(__file__), "USW00023066_data.csv")
+        cls.file_path = os.path.join(os.path.dirname(__file__), "GrandJunction", "USW00023066_data.csv")
         if not os.path.exists(cls.file_path):
             raise FileNotFoundError(f"The file {cls.file_path} does not exist.")
         
@@ -39,6 +39,25 @@ class TestPrecipGenPAR(unittest.TestCase):
         for col in self.expected_params.columns:
             self.assertTrue(np.allclose(self.obj[col], self.expected_params[col], rtol=0.001),
                             msg=f"Values in column {col} are not within 0.1% relative error.")
+    
+    def test_parameter_bounds(self):
+        """Test that parameters are within expected statistical bounds"""
+        # PWW and PWD should be probabilities (0-1)
+        self.assertTrue(all(0 <= p <= 1 for p in self.obj['PWW']), "PWW values should be between 0 and 1")
+        self.assertTrue(all(0 <= p <= 1 for p in self.obj['PWD']), "PWD values should be between 0 and 1")
+        
+        # ALPHA and BETA should be positive (gamma distribution parameters)
+        self.assertTrue(all(p > 0 for p in self.obj['ALPHA']), "ALPHA values should be positive")
+        self.assertTrue(all(p > 0 for p in self.obj['BETA']), "BETA values should be positive")
+    
+    def test_monthly_completeness(self):
+        """Test that all 12 months have calculated parameters"""
+        self.assertEqual(len(self.obj), 12, "Should have parameters for all 12 months")
+        
+        # Check that no parameters are NaN or infinite
+        for col in ['PWW', 'PWD', 'ALPHA', 'BETA']:
+            self.assertFalse(self.obj[col].isna().any(), f"Column {col} contains NaN values")
+            self.assertFalse(np.isinf(self.obj[col]).any(), f"Column {col} contains infinite values")
 
 if __name__ == '__main__':
     unittest.main()

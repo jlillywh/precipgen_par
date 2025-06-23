@@ -1,0 +1,985 @@
+#!/usr/bin/env python3
+"""
+PrecipGen Parameter CLI Tool
+
+A command-line interface for precipitation parameter generation and analysis.
+This tool provides various functions for analyzing precipitation time series data.
+"""
+
+import argparse
+import sys
+import os
+from pathlib import Path
+import pandas as pd
+
+# Add the current directory to Python path to import our modules
+sys.path.insert(0, os.path.abspath('.'))
+
+from time_series import TimeSeries
+from pgpar import calculate_params, calculate_window_params
+from pgpar_ext import calculate_ext_params
+from ghcn_data import GHCNData
+from find_ghcn_stations import filter_stations_by_climate_zone, read_inventory, get_climate_zones
+from find_stations import fetch_ghcn_inventory, parse_ghcn_inventory, fetch_station_data, analyze_data_format
+from gap_analyzer import analyze_gaps
+
+
+def get_output_path(filename, subdirectory="tests"):
+    """
+    Get output path, ensuring test/example files go to tests directory.
+    
+    Args:
+        filename (str): The filename or path
+        subdirectory (str): Default subdirectory for outputs (default: "tests")
+    
+    Returns:
+        str: Full path with tests directory if filename is just a basename
+    """
+    if filename is None:
+        return None
+    
+    # Convert to Path object for easier manipulation
+    path = Path(filename)
+    
+    # If it's just a filename (no directory), put it in tests/
+    if len(path.parts) == 1:
+        tests_dir = Path(subdirectory)
+        tests_dir.mkdir(exist_ok=True)
+        return str(tests_dir / filename)
+    
+    # If it's already a full path, use as-is
+    return str(path)
+
+
+def load_data(file_path, start_year=None, end_year=None):
+    """Load and optionally trim precipitation data."""
+    if not os.path.exists(file_path):
+        print(f"Error: File '{file_path}' not found.")
+        sys.exit(1)
+    
+    print(f"Loading data from: {file_path}")
+    timeseries = TimeSeries()
+    timeseries.load_and_preprocess(file_path)
+    
+    if start_year and end_year:
+        print(f"Trimming data to years {start_year}-{end_year}")
+        timeseries.trim(start_year, end_year)
+    
+    return timeseries
+
+
+def cmd_params(args):
+    """Calculate basic precipitation parameters (PWW, PWD, ALPHA, BETA) for each month."""
+    timeseries = load_data(args.input, args.start_year, args.end_year)
+    
+    print("Calculating monthly parameters...")
+    params = calculate_params(timeseries.get_data())
+    
+    print("\nMonthly Parameters:")
+    print(params)
+    
+    if args.output:
+        output_path = get_output_path(args.output)
+        params.to_csv(output_path, index=True)
+        print(f"\nParameters saved to: {output_path}")
+
+
+def cmd_window_params(args):
+    """Calculate window-based parameter statistics (volatility and reversion rates)."""
+    timeseries = load_data(args.input, args.start_year, args.end_year)
+    
+    print(f"Calculating window parameters using {args.window_years}-year windows...")
+    volatilities, reversion_rates = calculate_window_params(timeseries.get_data(), args.window_years)
+    
+    print(f"\nVolatilities [PWW, PWD, ALPHA, BETA]: {volatilities}")
+    print(f"Reversion Rates [PWW, PWD, ALPHA, BETA]: {reversion_rates}")
+    
+    if args.output:
+        import pandas as pd
+        results_df = pd.DataFrame({
+            'Parameter': ['PWW', 'PWD', 'ALPHA', 'BETA'],
+            'Volatility': volatilities,
+            'Reversion_Rate': reversion_rates
+        })
+        output_path = get_output_path(args.output)
+        results_df.to_csv(output_path, index=False)
+        print(f"\nWindow parameters saved to: {output_path}")
+
+
+def cmd_ext_params(args):
+    """Calculate extended parameters with distribution fitting."""
+    timeseries = load_data(args.input, args.start_year, args.end_year)
+    
+    print(f"Calculating extended parameters using {args.window_years}-year windows...")
+    ext_params = calculate_ext_params(timeseries.get_data(), args.window_years)
+    
+    print("\nExtended Parameters (Distribution fits):")
+    for param_name, param_data in ext_params.items():
+        print(f"\n{param_name}:")
+        print(param_data)
+    
+    if args.output:
+        # Save each parameter's distribution data to separate files
+        output_path = get_output_path(args.output)
+        base_name = Path(output_path).stem
+        base_dir = Path(output_path).parent
+        
+        for param_name, param_data in ext_params.items():
+            output_file = base_dir / f"{base_name}_{param_name}.csv"
+            param_data.to_csv(output_file, index=True)
+            print(f"{param_name} parameters saved to: {output_file}")
+
+
+def cmd_info(args):
+    """Display information about the precipitation dataset."""
+    timeseries = load_data(args.input)
+    data = timeseries.get_data()
+    
+    print("\nDataset Information:")
+    print(f"Start Date: {data.index.min()}")
+    print(f"End Date: {data.index.max()}")
+    print(f"Total Days: {len(data)}")
+    print(f"Date Range: {(data.index.max() - data.index.min()).days} days")
+    
+    # Basic precipitation statistics
+    prcp_data = data['PRCP']
+    wet_days = prcp_data[prcp_data > 0]
+    
+    print(f"\nPrecipitation Statistics:")
+    print(f"Total Wet Days: {len(wet_days)}")
+    print(f"Total Dry Days: {len(prcp_data) - len(wet_days)}")
+    print(f"Wet Day Frequency: {len(wet_days) / len(prcp_data):.3f}")
+    print(f"Mean Precipitation (wet days): {wet_days.mean():.3f}")
+    print(f"Max Precipitation: {prcp_data.max():.3f}")
+    print(f"Total Precipitation: {prcp_data.sum():.3f}")
+
+
+def cmd_test(args):
+    """Run the test suite."""
+    import unittest
+    
+    print("Running test suite...")
+    loader = unittest.TestLoader()
+    suite = loader.discover('tests')
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+    
+    print(f"\n{'='*50}")
+    print(f"Test Summary:")
+    print(f"Ran {result.testsRun} test(s)")
+    if result.wasSuccessful():
+        print("✅ All tests passed!")
+        return 0
+    else:
+        print(f"❌ Failures: {len(result.failures)}")
+        print(f"❌ Errors: {len(result.errors)}")
+        return 1
+
+
+def cmd_ghcn_info(args):
+    """Display information about GHCN stations and climate zones."""
+    # Load GHCN station inventory
+    inventory = read_inventory(args.inventory)
+    
+    print(f"\nLoaded {len(inventory)} stations from inventory.")
+    
+    # Filter stations by climate zone if specified
+    if args.climate_zone:
+        filtered_stations = filter_stations_by_climate_zone(inventory, args.climate_zone)
+        print(f"Filtered stations by climate zone '{args.climate_zone}': {len(filtered_stations)} stations")
+    else:
+        filtered_stations = inventory
+    
+    # Display basic information about the stations
+    for station in filtered_stations:
+        print(f"Station ID: {station['station_id']}, Location: {station['latitude']}, {station['longitude']}")
+    
+    # Optionally, fetch and display data for the first station
+    if args.fetch_data and filtered_stations:
+        first_station = filtered_stations[0]
+        print(f"\nFetching data for station {first_station['station_id']}...")
+        data = fetch_station_data(first_station['station_id'], args.start_year, args.end_year)
+        print(data.head())
+
+
+def cmd_fetch_inventory(args):
+    """Fetch GHCN station inventory from the NOAA website."""
+    print(f"Fetching GHCN station inventory from NOAA...")
+    inventory = fetch_ghcn_inventory()
+    
+    # Save inventory to file
+    if args.output:
+        import pandas as pd
+        df = pd.DataFrame(inventory)
+        df.to_csv(args.output, index=False)
+        print(f"Inventory saved to {args.output}")
+    else:
+        print(f"Fetched {len(inventory)} stations.")
+
+
+def cmd_parse_inventory(args):
+    """Parse a local GHCN inventory file."""
+    if not os.path.exists(args.input):
+        print(f"Error: File '{args.input}' not found.")
+        sys.exit(1)
+    
+    print(f"Parsing GHCN inventory file: {args.input}")
+    stations = parse_ghcn_inventory(args.input)
+    
+    print(f"Parsed {len(stations)} stations.")
+    
+    # Optionally, filter by climate zone
+    if args.climate_zone:
+        stations = filter_stations_by_climate_zone(stations, args.climate_zone)
+        print(f"Filtered to {len(stations)} stations in climate zone '{args.climate_zone}'")
+    
+    # Display station information
+    for station in stations:
+        print(f"Station ID: {station['station_id']}, Location: {station['latitude']}, {station['longitude']}")
+
+
+def cmd_analyze_format(args):
+    """Analyze the data format of a GHCN station."""
+    if not os.path.exists(args.input):
+        print(f"Error: File '{args.input}' not found.")
+        sys.exit(1)
+    
+    print(f"Analyzing data format for station file: {args.input}")
+    analyze_data_format(args.input)
+
+
+def cmd_find_stations(args):
+    """Find GHCN stations by climate zone with quality criteria."""
+    print(f"Searching for stations in {args.climate_zone} climate zones...")
+    
+    # Check if inventory file exists, if not download it
+    if not os.path.exists(args.inventory_file):
+        print(f"Inventory file not found at {args.inventory_file}")
+        if args.download:
+            print("Downloading GHCN inventory...")
+            raw_data = fetch_ghcn_inventory()
+            if raw_data:
+                with open(args.inventory_file, 'w') as f:
+                    f.write(raw_data)
+                print(f"Inventory saved to {args.inventory_file}")
+            else:
+                print("Failed to download inventory")
+                return 1
+        else:
+            print("Use --download flag to automatically download the inventory file")
+            return 1
+    
+    # Read and process inventory
+    try:
+        df = read_inventory(args.inventory_file)
+        print(f"Loaded {len(df)} records from inventory")
+        
+        valid_stations = filter_stations_by_climate_zone(df, args.climate_zone)
+        
+        print(f"\nFound {len(valid_stations)} stations matching criteria:")
+        print("- Located in specified climate zone")
+        print("- Has PRCP, TMAX, TMIN data")
+        print("- At least 90 years of data")
+        print("- Data ends after 2023")
+        print("- Starts on or before 1900")
+        print("- >95% data coverage")
+        
+        if valid_stations:
+            # Display results
+            results_df = pd.DataFrame(valid_stations)
+            print("\nStation Results:")
+            print(results_df.to_string(index=False))
+            
+            if args.output:
+                results_df.to_csv(args.output, index=False)
+                print(f"\nResults saved to: {args.output}")
+        else:
+            print("No stations found matching the criteria")
+            
+    except Exception as e:
+        print(f"Error processing inventory: {e}")
+        return 1
+
+
+def cmd_download_station(args):
+    """Download data for a specific GHCN station."""
+    print(f"Downloading data for station: {args.station_id}")
+    
+    try:
+        ghcn_data = GHCNData()
+        ghcn_data.fetch(args.station_id)
+        
+        if ghcn_data.data is not None:
+            print(f"Successfully downloaded data for {args.station_id}")
+            print(f"Station: {ghcn_data.station_name}")
+            print(f"Location: {ghcn_data.latitude:.4f}, {ghcn_data.longitude:.4f}")
+            print(f"Date Range: {ghcn_data.start_date} to {ghcn_data.end_date}")
+            print(f"Coverage: {ghcn_data.coverage:.1f}%")
+            
+            if args.output:
+                output_file = args.output
+            else:
+                output_file = f"{args.station_id}_data.csv"
+            
+            # Save data
+            ghcn_data.save_to_csv(output_file)
+            print(f"Data saved to: {output_file}")
+            
+            # Show basic stats
+            if hasattr(ghcn_data, 'data') and 'PRCP' in ghcn_data.data.columns:
+                prcp_data = ghcn_data.data['PRCP']
+                wet_days = prcp_data[prcp_data > 0]
+                print(f"\nPrecipitation Summary:")
+                print(f"Total days: {len(prcp_data)}")
+                print(f"Wet days: {len(wet_days)}")
+                print(f"Wet day frequency: {len(wet_days)/len(prcp_data):.3f}")
+                print(f"Mean precipitation (wet days): {wet_days.mean():.2f}")
+        else:
+            print(f"Failed to download data for station {args.station_id}")
+            return 1
+            
+    except Exception as e:
+        print(f"Error downloading station data: {e}")
+        return 1
+
+
+def cmd_list_climate_zones(args):
+    """List available climate zones and their coordinate ranges."""
+    print("Available Climate Zones:\n")
+    
+    zones = {
+        "arid": "Hot, dry climates with low precipitation",
+        "tropical": "Hot, humid climates near the equator", 
+        "temperate": "Moderate climates with distinct seasons"
+    }
+    
+    for zone_type, description in zones.items():
+        print(f"{zone_type.upper()}:")
+        print(f"  Description: {description}")
+        
+        climate_areas = get_climate_zones(zone_type)
+        if climate_areas:
+            print("  Geographic areas:")
+            for i, area in enumerate(climate_areas, 1):
+                lat_range = area["lat_range"]
+                long_range = area["long_range"] 
+                print(f"    {i}. Latitude: {lat_range[0]}° to {lat_range[1]}°, "
+                      f"Longitude: {long_range[0]}° to {long_range[1]}°")
+        print()
+
+
+def cmd_station_info(args):
+    """Get information about a specific GHCN station without downloading full dataset."""
+    print(f"Getting information for station: {args.station_id}")
+    
+    try:
+        # Try to get basic info first
+        raw_data = fetch_station_data(args.station_id)
+        if raw_data:
+            format_info = analyze_data_format(raw_data, args.station_id)
+            print(f"Data format: {format_info}")
+            
+            # Try to load with GHCNData for more details
+            ghcn_data = GHCNData()
+            ghcn_data.fetch(args.station_id)
+            
+            if ghcn_data.data is not None:
+                print(f"Station: {ghcn_data.station_name}")
+                print(f"Station ID: {ghcn_data.station_id}")
+                print(f"Location: {ghcn_data.latitude:.4f}, {ghcn_data.longitude:.4f}")
+                print(f"Date Range: {ghcn_data.start_date} to {ghcn_data.end_date}")
+                print(f"Coverage: {ghcn_data.coverage:.1f}%")
+                
+                # Show available data types
+                if hasattr(ghcn_data.data, 'columns'):
+                    data_types = [col for col in ghcn_data.data.columns if col not in ['DATE']]
+                    print(f"Available data types: {', '.join(data_types)}")
+            else:
+                print(f"Could not retrieve detailed information for station {args.station_id}")
+        else:
+            print(f"Station {args.station_id} not found or not accessible")
+            return 1
+            
+    except Exception as e:
+        print(f"Error getting station information: {e}")
+        return 1
+
+
+def cmd_gap_analysis(args):
+    """Perform gap analysis on precipitation dataset to identify missing data patterns."""
+    timeseries = load_data(args.input, args.start_year, args.end_year)
+    data = timeseries.get_data()
+    
+    print(f"Performing gap analysis on: {args.input}")
+    if args.start_year and args.end_year:
+        print(f"Analysis period: {args.start_year}-{args.end_year}")
+    
+    # Analyze gaps for precipitation data
+    print(f"Gap threshold: {args.gap_threshold} day(s)")
+    print("=" * 60)
+    
+    results = analyze_gaps(data, args.column, args.gap_threshold)
+    
+    if results is None:
+        print("Gap analysis failed - see error messages above")
+        return 1
+    
+    # Display comprehensive results
+    print(f"\n📊 GAP ANALYSIS SUMMARY")
+    print(f"=" * 60)
+    print(f"📅 Analysis Period: {results['min_date'].strftime('%Y-%m-%d')} to {results['max_date'].strftime('%Y-%m-%d')}")
+    print(f"📈 Total Days in Range: {results['total_days']:,}")
+    print(f"❌ Total Missing Days: {results['total_missing_days']:,}")
+    
+    if results['total_days'] > 0:
+        coverage_pct = ((results['total_days'] - results['total_missing_days']) / results['total_days']) * 100
+        print(f"✅ Data Coverage: {coverage_pct:.2f}%")
+    
+    print(f"\n🔍 GAP DISTRIBUTION")
+    print(f"=" * 60)
+    print(f"🟢 Short Gaps (≤{args.gap_threshold} days): {results['short_gap_count']}")
+    print(f"🔴 Long Gaps (>{args.gap_threshold} days): {results['long_gap_count']}")
+    
+    # Display long gaps details if any
+    if results['long_gap_count'] > 0:
+        print(f"\n📋 LONG GAPS DETAILS")
+        print(f"=" * 60)
+        long_gaps_df = results['long_gaps']
+        
+        for idx, gap in long_gaps_df.iterrows():
+            start_str = gap['start_date'].strftime('%Y-%m-%d')
+            end_str = gap['end_date'].strftime('%Y-%m-%d')
+            duration = gap['duration']
+            
+            print(f"Gap #{idx + 1}:")
+            print(f"  📅 Period: {start_str} to {end_str}")
+            print(f"  ⏱️  Duration: {duration} days")
+            print(f"  📊 Years affected: {duration / 365.25:.1f}")
+            print()
+    
+    # Data quality assessment
+    print(f"📋 DATA QUALITY ASSESSMENT")
+    print(f"=" * 60)
+    
+    if coverage_pct >= 95:
+        quality_status = "🟢 EXCELLENT"
+        recommendation = "Data is suitable for parameter calculation"
+    elif coverage_pct >= 90:
+        quality_status = "🟡 GOOD"
+        recommendation = "Data is generally suitable, consider gap filling for long gaps"
+    elif coverage_pct >= 80:
+        quality_status = "🟠 FAIR"
+        recommendation = "Consider gap filling or use with caution"
+    else:
+        quality_status = "🔴 POOR"
+        recommendation = "Gap filling strongly recommended before analysis"
+    
+    print(f"Quality Status: {quality_status}")
+    print(f"Recommendation: {recommendation}")
+    
+    # Parameter calculation recommendations
+    if results['long_gap_count'] == 0:
+        print(f"✅ Ready for parameter calculation - no significant gaps detected")
+    elif results['long_gap_count'] <= 3 and coverage_pct >= 90:
+        print(f"⚠️  Proceed with caution - {results['long_gap_count']} long gap(s) detected")
+    else:
+        print(f"⚠️  Consider data preprocessing before parameter calculation")
+      # Save detailed results if requested
+    if args.output:
+        output_path = get_output_path(args.output)
+        
+        # Create a comprehensive results file
+        summary_data = {
+            'Metric': [
+                'Analysis Period Start', 'Analysis Period End', 'Total Days',
+                'Missing Days', 'Data Coverage (%)', 'Short Gaps', 'Long Gaps'
+            ],
+            'Value': [
+                results['min_date'].strftime('%Y-%m-%d'),
+                results['max_date'].strftime('%Y-%m-%d'),
+                results['total_days'],
+                results['total_missing_days'],
+                f"{coverage_pct:.2f}",
+                results['short_gap_count'],
+                results['long_gap_count']
+            ]
+        }
+        summary_df = pd.DataFrame(summary_data)
+        
+        # Save summary
+        base_name = Path(output_path).stem
+        base_dir = Path(output_path).parent
+        
+        summary_file = base_dir / f"{base_name}_summary.csv"
+        summary_df.to_csv(summary_file, index=False)
+        print(f"\n💾 Gap analysis summary saved to: {summary_file}")
+        
+        # Save long gaps details if any exist
+        if results['long_gap_count'] > 0:
+            gaps_file = base_dir / f"{base_name}_long_gaps.csv"
+            results['long_gaps'].to_csv(gaps_file, index=False)
+            print(f"💾 Long gaps details saved to: {gaps_file}")
+    
+    print(f"\n" + "=" * 60)
+    return 0 if coverage_pct >= 80 else 1  # Return error code if coverage is poor
+
+
+def cmd_find_stations_radius(args):
+    """Find GHCN stations within a radius of specified coordinates."""
+    import math
+    
+    print(f"Searching for stations within {args.radius} km of ({args.latitude}, {args.longitude})")
+    
+    # Check if inventory file exists, if not download it
+    if not os.path.exists(args.inventory_file):
+        print(f"Inventory file not found at {args.inventory_file}")
+        if args.download:
+            print("Downloading GHCN inventory...")
+            raw_data = fetch_ghcn_inventory()
+            if raw_data:
+                with open(args.inventory_file, 'w') as f:
+                    f.write(raw_data)
+                print(f"Inventory saved to {args.inventory_file}")
+            else:
+                print("Failed to download inventory")
+                return 1
+        else:
+            print("Use --download flag to automatically download the inventory file")
+            return 1
+    
+    # Read inventory
+    try:
+        df = read_inventory(args.inventory_file)
+        print(f"Loaded {len(df)} records from inventory")
+        
+        # Calculate distance for each station
+        def calculate_distance(lat1, lon1, lat2, lon2):
+            """Calculate distance between two points using Haversine formula."""
+            R = 6371  # Earth's radius in kilometers
+            
+            lat1_rad = math.radians(lat1)
+            lat2_rad = math.radians(lat2)
+            delta_lat = math.radians(lat2 - lat1)
+            delta_lon = math.radians(lon2 - lon1)
+            
+            a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon/2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            
+            return R * c
+        
+        # Filter by distance and data requirements
+        target_lat, target_lon = args.latitude, args.longitude
+        
+        # Add distance column
+        df['distance'] = df.apply(lambda row: calculate_distance(
+            target_lat, target_lon, row['LAT'], row['LONG']), axis=1)
+        
+        # Filter by radius
+        nearby_df = df[df['distance'] <= args.radius]
+        print(f"Found {len(nearby_df)} stations within {args.radius} km")
+        
+        if nearby_df.empty:
+            print("No stations found in the specified radius")
+            return 1
+        
+        # Group by station and check data requirements
+        grouped = nearby_df.groupby("STATION")
+        valid_stations = []
+        
+        print("Filtering stations by data quality criteria...")
+        from tqdm import tqdm
+        
+        for station, group in tqdm(grouped, desc="Processing stations"):
+            types = set(group["TYPE"])
+            
+            # Check for required data types
+            required_types = set(args.data_types.split(','))
+            if not required_types.issubset(types):
+                continue
+                
+            min_begin = group["BEGIN"].min()
+            max_end = group["END"].max()
+            duration = max_end - min_begin
+            
+            # Check duration and date range requirements
+            if (duration >= args.min_years and 
+                max_end >= args.end_after and 
+                min_begin <= args.start_before):
+                
+                station_info = {
+                    "STATION": station,
+                    "LAT": group["LAT"].iloc[0],
+                    "LONG": group["LONG"].iloc[0],
+                    "DISTANCE_KM": group["distance"].iloc[0],
+                    "BEGIN": min_begin,
+                    "END": max_end,
+                    "DURATION_YEARS": duration,
+                    "DATA_TYPES": ",".join(sorted(types))
+                }
+                valid_stations.append(station_info)
+        
+        if not valid_stations:
+            print("No stations found meeting the data quality criteria")
+            return 1
+        
+        # Sort by distance
+        valid_stations.sort(key=lambda x: x['DISTANCE_KM'])
+        
+        print(f"\nFound {len(valid_stations)} stations meeting criteria:")
+        print("- Located within specified radius")
+        print(f"- Has required data types: {args.data_types}")
+        print(f"- At least {args.min_years} years of data")
+        print(f"- Data ends after {args.end_after}")
+        print(f"- Starts on or before {args.start_before}")
+          # Display results
+        results_df = pd.DataFrame(valid_stations)
+        print(f"\nStation Results (sorted by distance):")
+        print(results_df.to_string(index=False))
+        
+        if args.output:
+            output_path = get_output_path(args.output)
+            results_df.to_csv(output_path, index=False)
+            print(f"\nResults saved to: {output_path}")
+            
+        return 0
+        
+    except Exception as e:
+        print(f"Error processing inventory: {e}")
+        return 1
+
+
+def cmd_batch_gap_analysis(args):
+    """Perform gap analysis on multiple stations and create a wellness summary."""
+    print(f"Performing batch gap analysis on stations from: {args.stations_file}")
+    
+    try:
+        # Read stations file
+        stations_df = pd.read_csv(args.stations_file)
+        
+        if 'STATION' not in stations_df.columns:
+            print("Error: Stations file must have a 'STATION' column")
+            return 1
+        
+        station_ids = stations_df['STATION'].tolist()
+        print(f"Found {len(station_ids)} stations to analyze")
+        
+        wellness_results = []
+        download_failed = []
+        
+        for i, station_id in enumerate(station_ids, 1):
+            print(f"\n{'='*60}")
+            print(f"📊 ANALYZING STATION {i}/{len(station_ids)}: {station_id}")
+            print(f"{'='*60}")
+            
+            try:
+                # Download station data
+                print(f"⬇️  Downloading data for {station_id}...")
+                ghcn_data = GHCNData()
+                ghcn_data.fetch(station_id)
+                
+                if ghcn_data.data is None:
+                    print(f"❌ Failed to download data for {station_id}")
+                    download_failed.append(station_id)
+                    continue
+                
+                # Prepare data for gap analysis
+                data = ghcn_data.data.copy()
+                if 'DATE' in data.columns:
+                    data['DATE'] = pd.to_datetime(data['DATE'])
+                    data.set_index('DATE', inplace=True)
+                
+                # Apply date filtering if specified
+                if args.start_year or args.end_year:
+                    if args.start_year:
+                        start_date = f"{args.start_year}-01-01"
+                        data = data[data.index >= start_date]
+                    if args.end_year:
+                        end_date = f"{args.end_year}-12-31"
+                        data = data[data.index <= end_date]
+                
+                if data.empty:
+                    print(f"❌ No data available for {station_id} in specified date range")
+                    continue
+                
+                # Perform gap analysis
+                print(f"🔍 Analyzing gaps...")
+                gap_results = analyze_gaps(data, args.column, args.gap_threshold)
+                
+                if gap_results is None:
+                    print(f"❌ Gap analysis failed for {station_id}")
+                    continue
+                
+                # Calculate wellness metrics
+                coverage_pct = ((gap_results['total_days'] - gap_results['total_missing_days']) 
+                               / gap_results['total_days']) * 100 if gap_results['total_days'] > 0 else 0
+                
+                # Determine quality rating
+                if coverage_pct >= 95:
+                    quality_rating = "EXCELLENT"
+                    quality_score = 4
+                elif coverage_pct >= 90:
+                    quality_rating = "GOOD"
+                    quality_score = 3
+                elif coverage_pct >= 80:
+                    quality_rating = "FAIR"
+                    quality_score = 2
+                else:
+                    quality_rating = "POOR"
+                    quality_score = 1
+                
+                # Get station metadata
+                station_info = stations_df[stations_df['STATION'] == station_id].iloc[0] if station_id in stations_df['STATION'].values else {}
+                
+                # Compile wellness results
+                wellness_data = {
+                    'STATION_ID': station_id,
+                    'STATION_NAME': getattr(ghcn_data, 'station_name', 'Unknown'),
+                    'LATITUDE': getattr(ghcn_data, 'latitude', station_info.get('LAT', 'Unknown')),
+                    'LONGITUDE': getattr(ghcn_data, 'longitude', station_info.get('LONG', 'Unknown')),
+                    'DISTANCE_KM': station_info.get('DISTANCE_KM', 'Unknown'),
+                    'ANALYSIS_START': gap_results['min_date'].strftime('%Y-%m-%d'),
+                    'ANALYSIS_END': gap_results['max_date'].strftime('%Y-%m-%d'),
+                    'TOTAL_DAYS': gap_results['total_days'],
+                    'MISSING_DAYS': gap_results['total_missing_days'],
+                    'COVERAGE_PCT': round(coverage_pct, 2),
+                    'SHORT_GAPS': gap_results['short_gap_count'],
+                    'LONG_GAPS': gap_results['long_gap_count'],
+                    'QUALITY_RATING': quality_rating,
+                    'QUALITY_SCORE': quality_score,
+                    'LONGEST_GAP_DAYS': gap_results['long_gaps']['duration'].max() if not gap_results['long_gaps'].empty else 0
+                }
+                
+                wellness_results.append(wellness_data)
+                
+                # Print summary for this station
+                print(f"✅ Analysis complete:")
+                print(f"   📅 Period: {wellness_data['ANALYSIS_START']} to {wellness_data['ANALYSIS_END']}")
+                print(f"   📊 Coverage: {wellness_data['COVERAGE_PCT']}%")
+                print(f"   🏆 Quality: {wellness_data['QUALITY_RATING']}")
+                print(f"   🔴 Long gaps: {wellness_data['LONG_GAPS']}")
+                
+            except Exception as e:
+                print(f"❌ Error analyzing {station_id}: {e}")
+                continue
+        
+        # Create wellness summary
+        if wellness_results:
+            wellness_df = pd.DataFrame(wellness_results)
+            
+            # Sort by quality score (descending) then by coverage percentage (descending)
+            wellness_df = wellness_df.sort_values(['QUALITY_SCORE', 'COVERAGE_PCT'], ascending=[False, False])
+            
+            print(f"\n{'='*80}")
+            print(f"📋 BATCH GAP ANALYSIS SUMMARY")
+            print(f"{'='*80}")
+            print(f"Total stations analyzed: {len(wellness_results)}")
+            print(f"Download failures: {len(download_failed)}")
+            
+            # Quality distribution
+            quality_counts = wellness_df['QUALITY_RATING'].value_counts()
+            print(f"\nQuality Distribution:")
+            for quality, count in quality_counts.items():
+                print(f"  {quality}: {count} stations")
+            
+            # Best stations
+            print(f"\n🏆 TOP STATIONS BY QUALITY:")
+            top_stations = wellness_df.head(min(10, len(wellness_df)))
+            
+            display_cols = ['STATION_ID', 'STATION_NAME', 'DISTANCE_KM', 'COVERAGE_PCT', 'QUALITY_RATING', 'LONG_GAPS']
+            print(top_stations[display_cols].to_string(index=False))
+              # Save results
+            if args.output:
+                output_path = get_output_path(args.output)
+                wellness_df.to_csv(output_path, index=False)
+                print(f"\n💾 Wellness summary saved to: {output_path}")
+                
+                # Also save failed downloads list
+                if download_failed:
+                    failed_file = output_path.replace('.csv', '_failed.txt')
+                    with open(failed_file, 'w') as f:
+                        for station in download_failed:
+                            f.write(f"{station}\n")
+                    print(f"💾 Failed downloads list saved to: {failed_file}")
+            
+            print(f"\n{'='*80}")
+            return 0
+        else:
+            print("❌ No successful analyses completed")
+            return 1
+            
+    except Exception as e:
+        print(f"Error in batch gap analysis: {e}")
+        return 1
+
+
+def main():
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description='PrecipGen Parameter CLI Tool',
+        formatter_class=argparse.RawDescriptionHelpFormatter,        epilog="""
+Examples:
+  %(prog)s gap-analysis input.csv --gap-threshold 14
+  %(prog)s params input.csv -o params.csv
+  %(prog)s window input.csv --window-years 3 -o window_stats.csv
+  %(prog)s ext-params input.csv --start-year 1950 --end-year 2020
+  %(prog)s info input.csv
+  %(prog)s test
+  
+  # Station discovery and data download
+  %(prog)s list-zones
+  %(prog)s find-stations temperate --download -o temperate_stations.csv
+  %(prog)s download-station USW00023066 -o denver_data.csv
+  %(prog)s station-info USW00023066
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Common arguments for data processing commands
+    def add_common_args(parser):
+        parser.add_argument('input', help='Input precipitation data file (CSV)')
+        parser.add_argument('-o', '--output', help='Output file path')
+        parser.add_argument('--start-year', type=int, help='Start year for data trimming')
+        parser.add_argument('--end-year', type=int, help='End year for data trimming')
+    
+    # Parameters command
+    params_parser = subparsers.add_parser('params', help='Calculate monthly precipitation parameters')
+    add_common_args(params_parser)
+    params_parser.set_defaults(func=cmd_params)
+    
+    # Window parameters command
+    window_parser = subparsers.add_parser('window', help='Calculate window-based parameter statistics')
+    add_common_args(window_parser)
+    window_parser.add_argument('--window-years', type=int, default=2, 
+                              help='Number of years per window (default: 2)')
+    window_parser.set_defaults(func=cmd_window_params)
+    
+    # Extended parameters command
+    ext_parser = subparsers.add_parser('ext-params', help='Calculate extended parameters with distribution fitting')
+    add_common_args(ext_parser)
+    ext_parser.add_argument('--window-years', type=int, default=3,
+                           help='Number of years per window (default: 3)')
+    ext_parser.set_defaults(func=cmd_ext_params)
+      # Info command
+    info_parser = subparsers.add_parser('info', help='Display dataset information')
+    info_parser.add_argument('input', help='Input precipitation data file (CSV)')
+    info_parser.set_defaults(func=cmd_info)
+    
+    # Gap analysis command
+    gap_parser = subparsers.add_parser('gap-analysis', help='Analyze missing data gaps in precipitation dataset')
+    gap_parser.add_argument('input', help='Input precipitation data file (CSV)')
+    gap_parser.add_argument('-o', '--output', help='Output file prefix for gap analysis results')
+    gap_parser.add_argument('--start-year', type=int, help='Start year for data trimming')
+    gap_parser.add_argument('--end-year', type=int, help='End year for data trimming')
+    gap_parser.add_argument('--column', default='PRCP', help='Column to analyze for gaps (default: PRCP)')
+    gap_parser.add_argument('--gap-threshold', type=int, default=7, 
+                           help='Threshold for short vs long gaps in days (default: 7)')
+    gap_parser.set_defaults(func=cmd_gap_analysis)
+    
+    # Test command
+    test_parser = subparsers.add_parser('test', help='Run the test suite')
+    test_parser.set_defaults(func=cmd_test)
+    
+    # GHCN info command
+    ghcn_info_parser = subparsers.add_parser('ghcn-info', help='Display GHCN station information')
+    ghcn_info_parser.add_argument('--inventory', help='Path to GHCN station inventory file')
+    ghcn_info_parser.add_argument('--climate-zone', help='Filter stations by climate zone')
+    ghcn_info_parser.add_argument('--start-year', type=int, help='Start year for data fetching')
+    ghcn_info_parser.add_argument('--end-year', type=int, help='End year for data fetching')
+    ghcn_info_parser.add_argument('--fetch-data', action='store_true', help='Fetch station data')
+    ghcn_info_parser.set_defaults(func=cmd_ghcn_info)
+    
+    # Fetch inventory command
+    fetch_inventory_parser = subparsers.add_parser('fetch-inventory', help='Fetch GHCN station inventory')
+    fetch_inventory_parser.add_argument('-o', '--output', help='Output file path for inventory')
+    fetch_inventory_parser.set_defaults(func=cmd_fetch_inventory)
+    
+    # Parse inventory command
+    parse_inventory_parser = subparsers.add_parser('parse-inventory', help='Parse local GHCN inventory file')
+    parse_inventory_parser.add_argument('input', help='Input GHCN inventory file (CSV)')
+    parse_inventory_parser.add_argument('--climate-zone', help='Filter stations by climate zone')
+    parse_inventory_parser.set_defaults(func=cmd_parse_inventory)
+    
+    # Analyze format command
+    analyze_format_parser = subparsers.add_parser('analyze-format', help='Analyze data format of a GHCN station')
+    analyze_format_parser.add_argument('input', help='Input station data file (CSV)')
+    analyze_format_parser.set_defaults(func=cmd_analyze_format)
+      # Station discovery commands
+    find_parser = subparsers.add_parser('find-stations', help='Find GHCN stations by climate zone')
+    find_parser.add_argument('climate_zone', choices=['arid', 'tropical', 'temperate'],
+                           help='Climate zone to search in')
+    find_parser.add_argument('--inventory-file', default='ghcnd-inventory.txt',
+                           help='Path to GHCN inventory file (default: ghcnd-inventory.txt)')
+    find_parser.add_argument('--download', action='store_true',
+                           help='Download inventory file if not found')
+    find_parser.add_argument('-o', '--output', help='Output file for station results')
+    find_parser.set_defaults(func=cmd_find_stations)
+    
+    # Geographic station search
+    find_radius_parser = subparsers.add_parser('find-stations-radius', 
+                                             help='Find GHCN stations within radius of coordinates')
+    find_radius_parser.add_argument('latitude', type=float, help='Target latitude')
+    find_radius_parser.add_argument('longitude', type=float, help='Target longitude')
+    find_radius_parser.add_argument('radius', type=float, help='Search radius in kilometers')
+    find_radius_parser.add_argument('--inventory-file', default='ghcnd-inventory.txt',
+                                   help='Path to GHCN inventory file (default: ghcnd-inventory.txt)')
+    find_radius_parser.add_argument('--download', action='store_true',
+                                   help='Download inventory file if not found')
+    find_radius_parser.add_argument('--data-types', default='PRCP,TMAX,TMIN',
+                                   help='Required data types (comma-separated, default: PRCP,TMAX,TMIN)')
+    find_radius_parser.add_argument('--min-years', type=int, default=30,
+                                   help='Minimum years of data required (default: 30)')
+    find_radius_parser.add_argument('--start-before', type=int, default=1990,
+                                   help='Data must start on or before this year (default: 1990)')
+    find_radius_parser.add_argument('--end-after', type=int, default=2020,
+                                   help='Data must end after this year (default: 2020)')
+    find_radius_parser.add_argument('-o', '--output', help='Output file for station results')
+    find_radius_parser.set_defaults(func=cmd_find_stations_radius)
+    
+    # Batch gap analysis
+    batch_gap_parser = subparsers.add_parser('batch-gap-analysis', 
+                                           help='Perform gap analysis on multiple stations')
+    batch_gap_parser.add_argument('stations_file', help='CSV file containing station list (must have STATION column)')
+    batch_gap_parser.add_argument('-o', '--output', help='Output file for wellness summary')
+    batch_gap_parser.add_argument('--start-year', type=int, help='Start year for analysis period')
+    batch_gap_parser.add_argument('--end-year', type=int, help='End year for analysis period')
+    batch_gap_parser.add_argument('--column', default='PRCP', help='Column to analyze for gaps (default: PRCP)')
+    batch_gap_parser.add_argument('--gap-threshold', type=int, default=7, 
+                                 help='Threshold for short vs long gaps in days (default: 7)')
+    batch_gap_parser.set_defaults(func=cmd_batch_gap_analysis)
+    
+    # Download station command  
+    download_parser = subparsers.add_parser('download-station', help='Download data for a specific GHCN station')
+    download_parser.add_argument('station_id', help='GHCN station ID (e.g., USW00023066)')
+    download_parser.add_argument('-o', '--output', help='Output file path')
+    download_parser.set_defaults(func=cmd_download_station)
+    
+    # List climate zones command
+    zones_parser = subparsers.add_parser('list-zones', help='List available climate zones')
+    zones_parser.set_defaults(func=cmd_list_climate_zones)
+    
+    # Station info command
+    station_info_parser = subparsers.add_parser('station-info', help='Get information about a GHCN station')
+    station_info_parser.add_argument('station_id', help='GHCN station ID (e.g., USW00023066)')
+    station_info_parser.set_defaults(func=cmd_station_info)
+  
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        return 1
+    
+    try:
+        return args.func(args)
+    except KeyboardInterrupt:
+        print("\n\nOperation cancelled by user.")
+        return 1
+    except Exception as e:
+        print(f"\nError: {e}")
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
