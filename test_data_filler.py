@@ -37,13 +37,12 @@ class TestDataFiller(unittest.TestCase):
         # Seasonal pattern with random variations
         day_of_year = dates.dayofyear
         seasonal_pattern = 0.5 + 0.3 * np.sin(2 * np.pi * (day_of_year - 80) / 365)
-        
-        # Add random precipitation events
+          # Add random precipitation events
         precip_events = np.random.exponential(0.8, len(dates)) * seasonal_pattern
         
         # Create dry days (60% of days are dry)
         dry_mask = np.random.random(len(dates)) < 0.6
-        precip_events = precip_events.copy()  # Ensure we have a mutable array
+        precip_events = np.array(precip_events)  # Convert to numpy array for mutability
         precip_events[dry_mask] = 0.0
         
         self.test_data = pd.DataFrame({
