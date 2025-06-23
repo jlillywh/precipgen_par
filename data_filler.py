@@ -308,8 +308,7 @@ class PrecipitationDataFiller:
         
         if not candidate_years:
             return False
-        
-        # Calculate similarity scores for candidate years
+          # Calculate similarity scores for candidate years
         best_year = self._find_most_similar_year(
             df, gap_year, candidate_years, date_col, precip_col
         )
@@ -324,9 +323,28 @@ class PrecipitationDataFiller:
             gap_date = gap['start_date'] + timedelta(days=i)
             analog_date = year_start + timedelta(days=gap_date.dayofyear - 1)
             
-            analog_value = df[df[date_col] == analog_date][precip_col].iloc[0]
-            gap_idx = df[df[date_col] == gap_date].index[0]
+            # Find analog value with error checking
+            analog_matches = df[df[date_col] == analog_date][precip_col]
+            if analog_matches.empty:
+                # If no exact match, try nearby dates
+                for offset in [-1, 1, -2, 2]:
+                    alt_date = analog_date + timedelta(days=offset)
+                    alt_matches = df[df[date_col] == alt_date][precip_col]
+                    if not alt_matches.empty:
+                        analog_value = alt_matches.iloc[0]
+                        break
+                else:
+                    # If still no match, use climatological average for this day of year
+                    analog_value = 0.0  # Default to 0 if no data available
+            else:
+                analog_value = analog_matches.iloc[0]
             
+            # Find gap index with error checking
+            gap_matches = df[df[date_col] == gap_date].index
+            if gap_matches.empty:
+                continue  # Skip if no matching gap date found
+            
+            gap_idx = gap_matches[0]
             df.iloc[gap_idx, df.columns.get_loc(precip_col)] = analog_value
         
         logger.info(f"Analogous year fill: filled gap from {gap['start_date'].date()} using year {best_year}")
@@ -490,42 +508,94 @@ def fill_precipitation_data(input_file: str,
         Dictionary with filling report
     """
     
-    # Read data
-    df = pd.read_csv(input_file)
-    
-    # Initialize filler
-    filler = PrecipitationDataFiller(**kwargs)
-    
-    # Fill data
-    filled_df, report = filler.fill_missing_data(
-        df, date_col=date_col, precip_col=precip_col, output_file=output_file
-    )
-    
-    return report
-
-
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Fill missing precipitation data")
-    parser.add_argument('input_file', help='Input CSV file')
-    parser.add_argument('output_file', help='Output CSV file')
-    parser.add_argument('--date-col', default='DATE', help='Date column name')
-    parser.add_argument('--precip-col', default='PRCP', help='Precipitation column name')
-    parser.add_argument('--max-gap-days', type=int, default=30, help='Maximum gap size to fill')
-    parser.add_argument('--min-similarity', type=float, default=0.7, help='Minimum similarity for analogous years')
-    
-    args = parser.parse_args()
-    
-    report = fill_precipitation_data(
-        args.input_file,
-        args.output_file,
-        date_col=args.date_col,
-        precip_col=args.precip_col,
-        max_fill_gap_days=args.max_gap_days,
-        min_similarity_threshold=args.min_similarity
-    )
-    
-    print("Data filling completed!")
-    print(f"Success rate: {report['summary']['fill_success_rate']:.1f}%")
-    print(f"Values filled: {report['summary']['values_filled']}")
+    try:
+        # Read data with robust CSV parsing
+        df = None
+        
+        try:
+            # Method 1: Try standard CSV reading
+            df = pd.read_csv(input_file)
+            logger.info(f"✅ Successfully read CSV with standard method")
+        except Exception as e1:
+            logger.info(f"Standard CSV reading failed: {e1}")
+            
+            try:
+                # Method 2: Try reading as GHCN format (skip metadata headers)
+                # GHCN files have 6 lines of metadata, then empty line, then data
+                df = pd.read_csv(input_file, skiprows=7)
+                logger.info(f"✅ Successfully read CSV skipping GHCN metadata headers")
+            except Exception as e2:
+                logger.info(f"GHCN format reading failed: {e2}")
+                
+                try:
+                    # Method 3: Try detecting delimiter and headers automatically
+                    with open(input_file, 'r') as f:
+                        lines = f.readlines()
+                    
+                    # Find the actual data start by looking for DATE column
+                    data_start_row = 0
+                    for i, line in enumerate(lines):
+                        if 'DATE' in line and ('PRCP' in line or 'Precipitation' in line):
+                            data_start_row = i
+                            break
+                    
+                    if data_start_row > 0:
+                        df = pd.read_csv(input_file, skiprows=data_start_row)
+                        logger.info(f"✅ Successfully read CSV starting from row {data_start_row}")
+                    else:
+                        # Try without headers
+                        df = pd.read_csv(input_file, header=None)
+                        logger.info(f"✅ Successfully read CSV without headers")
+                        
+                except Exception as e3:
+                    raise Exception(f"Could not read CSV file. Tried multiple methods:\n"
+                                  f"1. Standard reading: {e1}\n"
+                                  f"2. GHCN format: {e2}\n"
+                                  f"3. Auto-detection: {e3}")
+        
+        if df is None or df.empty:
+            raise Exception("Failed to read the CSV file or file is empty")
+        
+        logger.info(f"📊 Dataset shape: {df.shape[0]} rows, {df.shape[1]} columns")
+        logger.info(f"📋 Columns: {list(df.columns)}")
+        
+        # Check if we have the required columns
+        available_cols = df.columns.tolist()
+        
+        # Try to find date column if default doesn't exist
+        if date_col not in available_cols:
+            date_candidates = ['DATE', 'Date', 'date', 'TIME', 'DATETIME', 'DateTime']
+            for candidate in date_candidates:
+                if candidate in available_cols:
+                    date_col = candidate
+                    logger.info(f"🔍 Using '{candidate}' as date column")
+                    break
+            else:
+                raise Exception(f"Date column '{date_col}' not found. Available columns: {available_cols}")
+        
+        # Try to find precipitation column if default doesn't exist
+        if precip_col not in available_cols:
+            precip_candidates = ['PRCP', 'PRECIPITATION', 'Precipitation', 'precipitation', 'RAIN', 'Rain']
+            for candidate in precip_candidates:
+                if candidate in available_cols:
+                    precip_col = candidate
+                    logger.info(f"🔍 Using '{candidate}' as precipitation column")
+                    break
+            else:
+                raise Exception(f"Precipitation column '{precip_col}' not found. Available columns: {available_cols}")
+        
+        # Initialize filler
+        filler = PrecipitationDataFiller(**kwargs)
+        
+        # Fill data
+        filled_df, report = filler.fill_missing_data(
+            df, date_col=date_col, precip_col=precip_col, output_file=output_file
+        )
+        
+        return report
+        
+    except Exception as e:
+        # Enhanced error reporting
+        error_msg = f"Error in fill_precipitation_data: {str(e)}"
+        logger.error(error_msg)
+        raise Exception(error_msg)
