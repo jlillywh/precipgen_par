@@ -56,6 +56,15 @@ test_output_*
 ghcnd-inventory.txt
 *.docx
 *.gsm
+# Wave analysis output directories
+wave_output/
+demo_output/
+*_wave_params.json
+*_components.csv
+*_history.csv
+*_projections.csv
+*_evolution.png
+*_components.png
 
 # Jupyter Notebook
 .ipynb_checkpoints

@@ -97,6 +97,63 @@ Annual Precipitation Autocorrelation:
 Results saved to USW00094728_precipitation_parameters.csv
 ```
 
+### 4.4 Wave Analysis of Parameter Evolution
+
+The system includes advanced wave function analysis to characterize the temporal evolution of PrecipGen parameters. This analysis identifies cyclic patterns and trends in PWW, PWD, alpha, and beta over time.
+
+#### Usage:
+
+```sh
+# Basic wave analysis
+python cli.py wave-analysis input_data.csv -o wave_results
+
+# Advanced wave analysis with custom parameters
+python cli.py wave-analysis input_data.csv \
+  --window-years 10 \
+  --overlap 0.5 \
+  --num-components 5 \
+  --create-plots \
+  --project-years 20 \
+  -o wave_analysis_output
+
+# Demo script for comprehensive analysis
+python demo_pgpar_wave.py
+```
+
+#### Parameters:
+- `--window-years`: Size of sliding window in years (default: 10)
+- `--overlap`: Window overlap fraction (default: 0.5)
+- `--num-components`: Number of wave components to extract (default: 5)
+- `--min-data-threshold`: Minimum data coverage per window (default: 0.8)
+- `--project-years`: Years to project into future (default: 0)
+- `--create-plots`: Generate visualization plots
+
+#### Output Files:
+- `*_wave_params.json`: Complete wave function parameters
+- `*_components.csv`: Summary of wave components
+- `*_history.csv`: Parameter values over time
+- `*_projections.csv`: Future parameter projections (if requested)
+- `*_evolution.png`: Parameter evolution plots (if requested)
+- `*_components.png`: Wave component analysis plots (if requested)
+
+#### Example Output:
+```
+Analysis Summary:
+--------------------------------------------------
+
+PWW:
+  Trend: -0.000326 per year
+  Dominant period: 8.0 years
+  Total wave amplitude: 0.1821
+  Components: 0 short-term, 1 medium-term, 0 long-term
+
+PWD:
+  Trend: -0.000028 per year
+  Dominant period: 8.0 years
+  Total wave amplitude: 0.0637
+  Components: 1 short-term, 1 medium-term, 0 long-term
+```
+
 ## 5. Testing
 The `PrecipGen` project includes a suite of tests to verify its functionality. Here are the testing requirements:
 

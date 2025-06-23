@@ -11,6 +11,7 @@ import sys
 import os
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 # Add the current directory to Python path to import our modules
 sys.path.insert(0, os.path.abspath('.'))
@@ -18,6 +19,7 @@ sys.path.insert(0, os.path.abspath('.'))
 from time_series import TimeSeries
 from pgpar import calculate_params, calculate_window_params
 from pgpar_ext import calculate_ext_params
+from pgpar_wave import PrecipGenPARWave, analyze_precipgen_parameter_waves
 from ghcn_data import GHCNData
 from find_ghcn_stations import filter_stations_by_climate_zone, read_inventory, get_climate_zones
 from find_stations import fetch_ghcn_inventory, parse_ghcn_inventory, fetch_station_data, analyze_data_format
@@ -812,16 +814,115 @@ def cmd_batch_gap_analysis(args):
         return 1
 
 
+def cmd_wave_analysis(args):
+    """Analyze temporal evolution of PrecipGen parameters using wave function decomposition."""
+    timeseries = load_data(args.input, args.start_year, args.end_year)
+    
+    print(f"Running parameter wave analysis with {args.window_years}-year windows...")
+    print(f"Window overlap: {args.overlap:.1%}")
+    print(f"Max wave components: {args.num_components}")
+    
+    # Initialize analyzer
+    analyzer = PrecipGenPARWave(
+        timeseries, 
+        window_size=args.window_years, 
+        overlap=args.overlap,
+        min_data_threshold=args.min_data_threshold
+    )
+    
+    # Extract parameter history
+    print("\nExtracting parameter history...")
+    param_history = analyzer.extract_parameter_history()
+    print(f"Extracted parameters for {len(param_history)} time windows")
+    
+    # Analyze wave components
+    print("\nAnalyzing wave components...")
+    wave_components = analyzer.analyze_parameter_waves(num_components=args.num_components)
+    
+    print("Wave components found:")
+    for param, components in wave_components.items():
+        n_comp = len(components['components'])
+        print(f"  {param}: {n_comp} components")
+    
+    # Fit parameter evolution
+    print("\nFitting parameter evolution...")
+    fitted_params = analyzer.fit_parameter_evolution()
+    
+    # Display summary
+    print("\nAnalysis Summary:")
+    print("-" * 50)
+    for param in ['PWW', 'PWD', 'alpha', 'beta']:
+        if param in fitted_params:
+            fitted = fitted_params[param]
+            trend_slope = fitted['trend']['slope']
+            dominant_period = fitted['wave_summary']['dominant_period']
+            total_amplitude = fitted['wave_summary']['total_amplitude']
+            
+            print(f"\n{param}:")
+            print(f"  Trend: {trend_slope:+.6f} per year")
+            if dominant_period and dominant_period < 200:
+                print(f"  Dominant period: {dominant_period:.1f} years")
+            print(f"  Total wave amplitude: {total_amplitude:.4f}")
+    
+    # Save outputs
+    if args.output:
+        output_base = get_output_path(args.output)
+        output_dir = Path(output_base).parent
+        output_stem = Path(output_base).stem
+        
+        # Create output directory
+        output_dir.mkdir(exist_ok=True)
+        
+        # Save wave parameters (JSON)
+        json_file = output_dir / f"{output_stem}_wave_params.json"
+        analyzer.export_wave_parameters(str(json_file), format='json')
+        print(f"\nWave parameters saved to: {json_file}")
+        
+        # Save component summary (CSV)
+        csv_file = output_dir / f"{output_stem}_components.csv"
+        analyzer.export_wave_parameters(str(csv_file), format='csv')
+        print(f"Component summary saved to: {csv_file}")
+        
+        # Save parameter history
+        history_file = output_dir / f"{output_stem}_history.csv"
+        param_history.to_csv(str(history_file), index=False)
+        print(f"Parameter history saved to: {history_file}")
+        
+        # Generate synthetic future parameters if requested
+        if args.project_years > 0:
+            data = timeseries.get_data()
+            end_year = data.index.year.max()
+            future_years = np.arange(end_year + 1, end_year + args.project_years + 1)
+            
+            synthetic_params = analyzer.generate_synthetic_parameters(future_years)
+            synthetic_file = output_dir / f"{output_stem}_projections.csv"
+            synthetic_params.to_csv(str(synthetic_file), index=False)
+            print(f"Future projections saved to: {synthetic_file}")
+        
+        # Create plots if requested
+        if args.create_plots:
+            evolution_plot = output_dir / f"{output_stem}_evolution.png"
+            analyzer.plot_parameter_evolution(save_path=str(evolution_plot))
+            print(f"Evolution plot saved to: {evolution_plot}")
+            
+            components_plot = output_dir / f"{output_stem}_components.png"
+            analyzer.plot_wave_components(save_path=str(components_plot))
+            print(f"Components plot saved to: {components_plot}")
+    
+    print("\nWave analysis complete!")
+    return 0
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description='PrecipGen Parameter CLI Tool',
-        formatter_class=argparse.RawDescriptionHelpFormatter,        epilog="""
+        description='PrecipGen Parameter CLI Tool',        formatter_class=argparse.RawDescriptionHelpFormatter,        epilog="""
 Examples:
   %(prog)s gap-analysis input.csv --gap-threshold 14
   %(prog)s params input.csv -o params.csv
   %(prog)s window input.csv --window-years 3 -o window_stats.csv
   %(prog)s ext-params input.csv --start-year 1950 --end-year 2020
+  %(prog)s wave-analysis input.csv --window-years 10 --create-plots -o wave_results
   %(prog)s info input.csv
   %(prog)s test
   
@@ -853,13 +954,29 @@ Examples:
     window_parser.add_argument('--window-years', type=int, default=2, 
                               help='Number of years per window (default: 2)')
     window_parser.set_defaults(func=cmd_window_params)
-    
-    # Extended parameters command
+      # Extended parameters command
     ext_parser = subparsers.add_parser('ext-params', help='Calculate extended parameters with distribution fitting')
     add_common_args(ext_parser)
     ext_parser.add_argument('--window-years', type=int, default=3,
                            help='Number of years per window (default: 3)')
     ext_parser.set_defaults(func=cmd_ext_params)
+    
+    # Wave analysis command
+    wave_parser = subparsers.add_parser('wave-analysis', help='Analyze temporal evolution of parameters using wave functions')
+    add_common_args(wave_parser)
+    wave_parser.add_argument('--window-years', type=int, default=10,
+                           help='Number of years per window (default: 10)')
+    wave_parser.add_argument('--overlap', type=float, default=0.5,
+                           help='Window overlap fraction (default: 0.5)')
+    wave_parser.add_argument('--num-components', type=int, default=5,
+                           help='Number of wave components to extract (default: 5)')
+    wave_parser.add_argument('--min-data-threshold', type=float, default=0.8,
+                           help='Minimum data coverage required per window (default: 0.8)')
+    wave_parser.add_argument('--project-years', type=int, default=0,
+                           help='Number of years to project into future (default: 0)')
+    wave_parser.add_argument('--create-plots', action='store_true',
+                           help='Create visualization plots')
+    wave_parser.set_defaults(func=cmd_wave_analysis)
       # Info command
     info_parser = subparsers.add_parser('info', help='Display dataset information')
     info_parser.add_argument('input', help='Input precipitation data file (CSV)')
@@ -957,13 +1074,11 @@ Examples:
     # List climate zones command
     zones_parser = subparsers.add_parser('list-zones', help='List available climate zones')
     zones_parser.set_defaults(func=cmd_list_climate_zones)
-    
-    # Station info command
+      # Station info command
     station_info_parser = subparsers.add_parser('station-info', help='Get information about a GHCN station')
     station_info_parser.add_argument('station_id', help='GHCN station ID (e.g., USW00023066)')
     station_info_parser.set_defaults(func=cmd_station_info)
   
-    
     # Parse arguments
     args = parser.parse_args()
     
