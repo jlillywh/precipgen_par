@@ -5,8 +5,47 @@ This guide will help you get started with PrecipGen PAR to find weather stations
 ## Quick Setup
 
 ### 1. Install Python (if not already installed)
-- Download Python 3.8 or newer from https://python.org
-- During installation, make sure to check "Add Python to PATH"
+
+**IMPORTANT for Windows users:** Make sure to install 64-bit Python for best compatibility with scientific packages.
+
+#### Quick Check: Do you have the right Python?
+```powershell
+# Check if you have 64-bit Python installed
+python -c "import platform; print(f'Python {platform.python_version()} - {platform.architecture()[0]}')"
+```
+
+You should see something like: `Python 3.12.5 - 64bit`
+
+If you see `32bit` or get an error, follow the installation steps below.
+
+#### Fresh Installation (Recommended)
+1. **Download 64-bit Python** from https://python.org
+   - Choose "Windows installer (64-bit)" 
+   - Python 3.9, 3.10, 3.11, or 3.12 are all supported
+2. During installation:
+   - ✅ Check "Add Python to PATH" 
+   - ✅ Check "Install for all users" (if you have admin rights)
+   - Choose "Customize installation" and ensure "pip" is selected
+
+#### If you have multiple Python versions
+If you already have Python installed but it's 32-bit, you can:
+
+**Option A: Install 64-bit Python alongside (Recommended)**
+```powershell
+# After installing 64-bit Python, create venv with specific Python
+C:\Users\YourUsername\AppData\Local\Programs\Python\Python312\python.exe -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+**Option B: Use py launcher to select 64-bit version**
+```powershell
+# List available Python versions
+py -0
+
+# Create venv with specific 64-bit version (e.g., 3.12)
+py -3.12 -m venv venv
+.\venv\Scripts\Activate.ps1
+```
 
 ### 2. Download the Tool
 ```bash
@@ -271,7 +310,43 @@ You can also search by specific coordinates for any location worldwide.
 
 ## Troubleshooting
 
+### Python Installation Issues
+
+**"Python dependency not found" or "Need python for x86_64, but found x86"**:
+- This means you have 32-bit Python but need 64-bit for scientific packages
+- Solution: Install 64-bit Python from https://python.org
+- After installing 64-bit Python, recreate your virtual environment:
+  ```powershell
+  # Remove old venv
+  Remove-Item -Recurse -Force venv
+  
+  # Create new venv with 64-bit Python
+  python -m venv venv
+  .\venv\Scripts\Activate.ps1
+  pip install -r requirements.txt
+  ```
+
+**"pandas installation fails with meson build errors"**:
+- Usually indicates 32-bit Python or missing build tools
+- Use the 64-bit Python solution above
+- If still failing, try: `pip install --only-binary=all pandas`
+
+**"Multiple Python versions detected"**:
+- Use py launcher to select specific version:
+  ```powershell
+  py -0  # List available versions
+  py -3.12 -m venv venv  # Use specific 64-bit version
+  ```
+
+### Package Installation Issues
+
 **"Module not found" errors**: Run `pip install -r requirements.txt`
+
+**"Permission denied during pip install"**: 
+- Make sure virtual environment is activated
+- On Windows, run PowerShell as administrator if needed
+
+### Data and Connection Issues
 
 **"No stations found"**: Try increasing search radius or relaxing criteria
 

@@ -9,6 +9,7 @@ This tool provides various functions for analyzing precipitation time series dat
 import argparse
 import sys
 import os
+import math
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -311,7 +312,6 @@ def cmd_download_station(args):
     try:
         ghcn_data = GHCNData()
         ghcn_data.fetch(args.station_id)
-        
         if ghcn_data.data is not None:
             print(f"Successfully downloaded data for {args.station_id}")
             print(f"Station: {ghcn_data.station_name}")
@@ -324,19 +324,68 @@ def cmd_download_station(args):
             else:
                 output_file = f"{args.station_id}_data.csv"
             
+            # Check if file exists and confirm overwrite
+            if os.path.exists(output_file) and not args.force:
+                print(f"\n⚠️  File '{output_file}' already exists!")
+                while True:
+                    response = input("Do you want to overwrite it? (y/n): ").strip().lower()
+                    if response in ['y', 'yes']:
+                        break
+                    elif response in ['n', 'no']:
+                        print("Operation cancelled. Data not saved.")
+                        return 0
+                    else:
+                        print("Please enter 'y' for yes or 'n' for no.")
+            elif os.path.exists(output_file) and args.force:
+                print(f"🔄 Overwriting existing file: {output_file}")
+            
             # Save data
             ghcn_data.save_to_csv(output_file)
-            print(f"Data saved to: {output_file}")
-            
-            # Show basic stats
+            print(f"✅ Data saved to: {output_file}")
+              # Show enhanced precipitation statistics
             if hasattr(ghcn_data, 'data') and 'PRCP' in ghcn_data.data.columns:
-                prcp_data = ghcn_data.data['PRCP']
-                wet_days = prcp_data[prcp_data > 0]
-                print(f"\nPrecipitation Summary:")
-                print(f"Total days: {len(prcp_data)}")
-                print(f"Wet days: {len(wet_days)}")
-                print(f"Wet day frequency: {len(wet_days)/len(prcp_data):.3f}")
-                print(f"Mean precipitation (wet days): {wet_days.mean():.2f}")
+                df = ghcn_data.data.copy()
+                df['DATE'] = pd.to_datetime(df['DATE'])
+                df['YEAR'] = df['DATE'].dt.year
+                
+                # Calculate annual statistics
+                annual_stats = df.groupby('YEAR').agg({
+                    'PRCP': ['sum', 'count']
+                }).round(1)
+                annual_stats.columns = ['annual_precip', 'total_days']
+                
+                # Calculate wet/dry days per year
+                annual_wet_dry = df.groupby('YEAR')['PRCP'].apply(
+                    lambda x: pd.Series({
+                        'wet_days': (x > 0).sum(),
+                        'dry_days': (x == 0).sum()
+                    })
+                ).unstack()
+                
+                # Calculate maximum consecutive dry days
+                def max_consecutive_dry_days(precip_series):
+                    dry_streaks = []
+                    current_streak = 0
+                    for value in precip_series:
+                        if value == 0:
+                            current_streak += 1
+                        else:
+                            if current_streak > 0:
+                                dry_streaks.append(current_streak)
+                            current_streak = 0
+                    if current_streak > 0:  # Handle streak at end
+                        dry_streaks.append(current_streak)
+                    return max(dry_streaks) if dry_streaks else 0
+                
+                max_dry_streak = max_consecutive_dry_days(df['PRCP'])
+                max_daily_precip = df['PRCP'].max()
+                
+                print(f"\n📊 Precipitation Summary:")
+                print(f"Average annual precipitation: {annual_stats['annual_precip'].mean():.1f} mm")
+                print(f"Average annual wet days: {annual_wet_dry['wet_days'].mean():.0f} days")
+                print(f"Average annual dry days: {annual_wet_dry['dry_days'].mean():.0f} days")
+                print(f"Maximum daily precipitation: {max_daily_precip:.1f} mm")
+                print(f"Maximum consecutive dry days: {max_dry_streak} days")
         else:
             print(f"Failed to download data for station {args.station_id}")
             return 1
@@ -1118,11 +1167,12 @@ Examples:
     batch_gap_parser.add_argument('--gap-threshold', type=int, default=7, 
                                  help='Threshold for short vs long gaps in days (default: 7)')
     batch_gap_parser.set_defaults(func=cmd_batch_gap_analysis)
-    
-    # Download station command  
+      # Download station command  
     download_parser = subparsers.add_parser('download-station', help='Download data for a specific GHCN station')
     download_parser.add_argument('station_id', help='GHCN station ID (e.g., USW00023066)')
     download_parser.add_argument('-o', '--output', help='Output file path')
+    download_parser.add_argument('--force', action='store_true', 
+                                help='Overwrite existing files without prompting')
     download_parser.set_defaults(func=cmd_download_station)
     
     # List climate zones command
@@ -1186,6 +1236,14 @@ Examples:
             cmd_batch_gap_analysis(args)
         elif args.command == 'download-station':
             cmd_download_station(args)
+        elif args.command == 'list-zones':
+            cmd_list_climate_zones(args)
+        elif args.command == 'station-info':
+            cmd_station_info(args)
+        elif args.command == 'gap-analysis':
+            cmd_gap_analysis(args)
+        elif args.command == 'wave-analysis':
+            cmd_wave_analysis(args)
         elif args.command == 'fill-data':
             cmd_fill_data(args)
         else:
