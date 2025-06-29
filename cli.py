@@ -21,6 +21,7 @@ from time_series import TimeSeries
 from pgpar import calculate_params, calculate_window_params
 from pgpar_ext import calculate_ext_params
 from pgpar_wave import PrecipGenPARWave, analyze_precipgen_parameter_waves
+from random_walk_params import RandomWalkParameterAnalyzer, analyze_random_walk_parameters
 from ghcn_data import GHCNData
 from find_ghcn_stations import filter_stations_by_climate_zone, read_inventory, get_climate_zones
 from find_stations import fetch_ghcn_inventory, parse_ghcn_inventory, fetch_station_data, analyze_data_format

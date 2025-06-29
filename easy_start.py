@@ -195,16 +195,16 @@ def print_menu():
     print("4. Fill missing data (RECOMMENDED)")
     print("5. Check data quality (Enhanced Gap Analysis)")
     print("6. Calculate basic parameters")
-    print("7. Advanced wave analysis")
-    print("8. Complete workflow (find → download → fill → analyze)")
-    print("9. Help - Understanding the process")
-    print("10. ⚙️  Change output directory")
-    print("11. 📋 Show current configuration")
-    print("12. Exit")
+    print("7. Calculate random walk parameters")
+    print("8. Advanced wave analysis")
+    print("9. Complete workflow (find → download → fill → analyze)")
+    print("10. Help - Understanding the process")
+    print("11. ⚙️  Change output directory")
+    print("12. 📋 Show current configuration")
+    print("13. Exit")
     print()
-    print("💡 NEW: Option 5 includes yearly gap analysis!")
-    print("   See which years have significant missing data that could")
-    print("   impact statistical modeling and PrecipGen parameters.")
+    print("💡 NEW: Option 7 calculates volatility & reversion rates for")
+    print("   mean-reverting random walk processes (recommended approach)!")
     print()
 
 def select_time_series_file(operation_name):
@@ -320,6 +320,262 @@ def run_param_calculation(data_file):
     
     input("\nPress Enter to continue...")
 
+def run_random_walk_analysis(data_file):
+    """Run random walk parameter analysis."""
+    print(f"\nRunning random walk parameter analysis on: {os.path.basename(data_file)}")
+    print()
+    print("This analysis calculates volatility and reversion rates for")
+    print("mean-reverting random walk processes - the recommended approach")
+    print("for modeling long-term precipitation parameter variability.")
+    print()
+    
+    # Get user preferences
+    window_years = input("Window size in years (default=2, as per paper): ").strip()
+    if not window_years:
+        window_years = "2"
+    
+    # Ask about seasonal analysis
+    seasonal_analysis = input("🌍 Run seasonal long-term trend analysis? This analyzes climate change trends within seasons (y/n, default=y): ").strip().lower()
+    print("   Note: This is different from PrecipGen's built-in seasonal variation.")
+    print("   This detects long-term trends WITHIN each season (e.g., 'summers getting wetter over decades').")
+    if not seasonal_analysis or seasonal_analysis in ['y', 'yes']:
+        seasonal_analysis = True
+    else:
+        seasonal_analysis = False
+    
+    create_plots = input("Create plots? (y/n, default=y): ").strip().lower()
+    if not create_plots or create_plots in ['y', 'yes']:
+        create_plots = "y"
+    else:
+        create_plots = "n"
+    
+    output_name = input("Output file base name (default=random_walk_analysis): ").strip()
+    if not output_name:
+        output_name = "random_walk_analysis"
+    
+    try:
+        # Import and run the analysis
+        from random_walk_params import analyze_random_walk_parameters
+        from time_series import TimeSeries
+        
+        # Load the time series
+        print(f"\nLoading data from: {data_file}")
+        ts = TimeSeries()
+        ts.load_and_preprocess(data_file)
+        
+        # Run the analysis
+        print("Running random walk parameter analysis...")
+        analyzer = analyze_random_walk_parameters(ts, window_size=int(window_years), seasonal_analysis=seasonal_analysis)
+        
+        # Save results
+        json_file = f"{output_name}.json"
+        csv_file = f"{output_name}.csv"
+        
+        analyzer.export_results(json_file, format='json')
+        analyzer.export_results(csv_file, format='csv')
+        
+        # Create plots if requested
+        if create_plots == 'y':
+            evolution_plot = f"{output_name}_evolution.png"
+            correlation_plot = f"{output_name}_correlations.png"
+            
+            print("Creating annual analysis plots...")
+            analyzer.plot_parameter_evolution(evolution_plot)
+            analyzer.plot_correlation_matrix(correlation_plot)
+            
+            plot_files = [evolution_plot, correlation_plot]
+            
+            # Create seasonal plots if seasonal analysis was performed
+            if seasonal_analysis and analyzer.seasonal_sequences:
+                print("Creating seasonal analysis plots...")
+                seasonal_plot = f"{output_name}_seasonal_evolution.png"
+                analyzer.plot_seasonal_parameter_evolution(seasonal_plot)
+                plot_files.append(seasonal_plot)
+                
+                # Export seasonal results
+                seasonal_json = f"{output_name}_seasonal.json"
+                seasonal_csv = f"{output_name}_seasonal.csv"
+                analyzer.export_seasonal_results(seasonal_json, format='json')
+                analyzer.export_seasonal_results(seasonal_csv, format='csv')
+                
+                print(f"Seasonal results saved to: {seasonal_json}, {seasonal_csv}")
+        
+        print(f"\n✅ Random walk analysis completed successfully!")
+        print(f"Results saved to: {json_file}, {csv_file}")
+        if create_plots == 'y':
+            print(f"Plots saved to: {', '.join(plot_files)}")
+        
+        # Display summary results
+        print(f"\n📊 RANDOM WALK PARAMETERS SUMMARY:")
+        analysis_type = "Annual + Seasonal" if seasonal_analysis else "Annual Only"
+        print(f"Analysis type: {analysis_type}")
+        print(f"Analysis based on {len(analyzer.parameter_sequence)} overlapping {window_years}-year windows")
+        print()
+        print("ANNUAL PARAMETERS:")
+        print("Parameter    Volatility    Reversion Rate    Long-term Mean")
+        print("-" * 60)
+        for param in ['PWW', 'PWD', 'alpha', 'beta']:
+            if param in analyzer.volatilities:
+                vol = analyzer.volatilities[param]
+                rev = analyzer.reversion_rates[param]
+                mean = analyzer.long_term_means[param]
+                print(f"{param:<12} {vol:>10.6f}    {rev:>12.6f}    {mean:>12.6f}")
+        
+        print()
+        print("Key correlations:")
+        for corr_name, corr_val in analyzer.correlations.items():
+            print(f"  {corr_name}: {corr_val:>7.4f}")
+        
+        # Display seasonal results if available
+        if seasonal_analysis and analyzer.seasonal_sequences:
+            print(f"\n🌍 SEASONAL LONG-TERM TREND ANALYSIS:")
+            print("(This is different from PrecipGen's seasonal variation - this detects climate change trends)")
+            print()
+            print("📈 LONG-TERM TRENDS BY SEASON:")
+            print("Note: PrecipGen already handles seasonal variation via monthly parameters.")
+            print("This analysis reveals long-term trends WITHIN each season over decades.")
+            print()
+            
+            # Calculate and display trends
+            import numpy as np
+            for season in ['winter', 'spring', 'summer', 'fall']:
+                if season in analyzer.seasonal_sequences:
+                    season_data = analyzer.seasonal_sequences[season]
+                    n_windows = len(season_data)
+                    print(f"{season.upper()} TRENDS ({n_windows} windows):")
+                    
+                    for param in ['PWW', 'PWD']:
+                        if param in season_data.columns and len(season_data) > 3:
+                            years = season_data['year'].values
+                            values = season_data[param].values
+                            
+                            if len(years) > 2:
+                                # Calculate linear trend
+                                trend_coef = np.polyfit(years, values, 1)[0]
+                                trend_per_decade = trend_coef * 10
+                                
+                                # Determine trend significance
+                                trend_strength = "STRONG" if abs(trend_per_decade) > 0.01 else "MODERATE" if abs(trend_per_decade) > 0.005 else "WEAK"
+                                trend_direction = "INCREASING" if trend_per_decade > 0 else "DECREASING"
+                                
+                                # Calculate correlation for trend significance
+                                from scipy.stats import pearsonr
+                                try:
+                                    corr, p_value = pearsonr(years, values)
+                                    significance = "SIGNIFICANT" if p_value < 0.05 else "NOT SIGNIFICANT"
+                                except:
+                                    significance = "UNKNOWN"
+                                
+                                # Calculate total change over analysis period
+                                total_years = years.max() - years.min()
+                                total_change = trend_coef * total_years
+                                percent_change = (total_change / values.mean()) * 100 if values.mean() != 0 else 0
+                                
+                                # Special highlighting for dramatic changes
+                                if abs(percent_change) > 50:
+                                    highlight = "🚨 DRAMATIC CHANGE"
+                                elif abs(percent_change) > 25:
+                                    highlight = "⚠️ MAJOR CHANGE"
+                                elif abs(percent_change) > 10:
+                                    highlight = "📈 NOTABLE CHANGE"
+                                else:
+                                    highlight = ""
+                                
+                                print(f"  {param}: {trend_direction} {trend_per_decade:+.4f}/decade ({trend_strength}, {significance})")
+                                print(f"       Total change over {total_years:.0f} years: {total_change:+.4f} ({percent_change:+.1f}%) {highlight}")
+                    print()
+            
+            seasonal_vol = analyzer.calculate_seasonal_volatilities()
+            seasonal_rev = analyzer.calculate_seasonal_reversion_rates()
+            seasonal_means = analyzer.calculate_seasonal_long_term_means()
+            
+            print(f"📊 SEASONAL RANDOM WALK PARAMETERS:")
+            for season in ['winter', 'spring', 'summer', 'fall']:
+                if season in analyzer.seasonal_sequences:
+                    n_windows = len(analyzer.seasonal_sequences[season])
+                    print(f"{season.upper()} ({n_windows} windows):")
+                    
+                    for param in ['PWW', 'PWD']:  # Focus on key parameters
+                        if (season in seasonal_vol and param in seasonal_vol[season]):
+                            vol = seasonal_vol[season][param]
+                            rev = seasonal_rev[season][param]
+                            mean = seasonal_means[season][param]
+                            print(f"  {param}: σ={vol:.6f}, r={rev:.6f}, μ={mean:.4f}")
+            
+            print(f"\n🎯 CLIMATE CHANGE INSIGHTS:")
+            print("Look at the seasonal evolution plot to identify:")
+            print("• Long-term climate trends within specific seasons")
+            print("• Evidence of changing precipitation regimes")
+            print("• Seasonal climate change signatures masked in annual averages")
+            print("• Competing seasonal trends (e.g., wetter summers vs. drier winters)")
+            print()
+            
+            # Extract and export trend slopes for PrecipGen use
+            print(f"� TREND SLOPES FOR PRECIPGEN RANDOM WALK:")
+            print("These linear trend slopes can be used as time-varying reversion targets.")
+            print()
+            
+            trend_slopes = {}
+            for season in ['winter', 'spring', 'summer', 'fall']:
+                if season in analyzer.seasonal_sequences:
+                    season_data = analyzer.seasonal_sequences[season]
+                    trend_slopes[season] = {}
+                    
+                    print(f"{season.upper()} TREND SLOPES:")
+                    for param in ['PWW', 'PWD', 'alpha', 'beta']:
+                        if param in season_data.columns and len(season_data) > 3:
+                            years = season_data['year'].values
+                            values = season_data[param].values
+                            
+                            if len(years) > 2:
+                                # Calculate linear trend slope
+                                trend_coef = np.polyfit(years, values, 1)[0]
+                                intercept = np.polyfit(years, values, 1)[1]
+                                
+                                # Store for export
+                                trend_slopes[season][param] = {
+                                    'slope': float(trend_coef),
+                                    'intercept': float(intercept),
+                                    'slope_per_year': float(trend_coef),
+                                    'slope_per_decade': float(trend_coef * 10)
+                                }
+                                
+                                print(f"  {param}_slope: {trend_coef:+.6f} per year ({trend_coef*10:+.6f} per decade)")
+                    print()
+            
+            # Export trend slopes to file for PrecipGen integration
+            if trend_slopes:
+                trend_slopes_file = f"{output_name}_trend_slopes.json"
+                try:
+                    import json
+                    with open(trend_slopes_file, 'w') as f:
+                        json.dump({
+                            'description': 'Linear trend slopes for seasonal precipitation parameters',
+                            'usage': 'Use slope values as time-varying reversion targets in PrecipGen random walk',
+                            'units': 'slope per year',
+                            'trend_slopes': trend_slopes,
+                            'analysis_info': {
+                                'data_file': data_file,
+                                'window_size_years': int(window_years),
+                                'analysis_date': datetime.now().isoformat()
+                            }
+                        }, f, indent=2)
+                    
+                    print(f"💾 TREND SLOPES EXPORTED TO: {trend_slopes_file}")
+                    print("This file contains the linear trend slopes for PrecipGen integration.")
+                    print("Format: parameter_value(t) = intercept + slope * (year - reference_year)")
+                except Exception as e:
+                    print(f"⚠️ Could not export trend slopes: {e}")
+            
+            print()
+            print("💡 This complements PrecipGen's seasonal variation by adding long-term trend capability!")
+        
+    except Exception as e:
+        print(f"\n❌ Random walk analysis failed: {e}")
+        print("Make sure you have the required dependencies installed.")
+    
+    input("\nPress Enter to continue...")
+
 def run_wave_analysis(data_file):
     """Run wave function analysis."""
     print(f"\nRunning wave analysis on: {os.path.basename(data_file)}")
@@ -364,7 +620,7 @@ def run_wave_analysis(data_file):
 def run_complete_workflow(data_file):
     """Run the complete analysis workflow."""
     print(f"\nRunning complete workflow on: {os.path.basename(data_file)}")
-    print("This will run data filling, gap analysis, parameter calculation, and wave analysis.")
+    print("This will run data filling, gap analysis, parameter calculation, and random walk analysis.")
     
     confirm = input("Continue? (y/n): ").lower()
     if confirm not in ['y', 'yes']:
@@ -400,13 +656,36 @@ def run_complete_workflow(data_file):
     print(f"Running: {cmd3}")
     subprocess.run(cmd3, shell=True)
     
-    # Step 4: Wave analysis
+    # Step 4: Random walk parameter analysis
     print("\n" + "="*40)
-    print("Step 4: Wave Analysis")
+    print("Step 4: Random Walk Parameter Analysis")
     print("="*40)
-    cmd4 = f'python cli.py wave-analysis "{analysis_file}" --create-plots --project-years 20 -o "{base_name}_wave"'
-    print(f"Running: {cmd4}")
-    subprocess.run(cmd4, shell=True)
+    try:
+        from random_walk_params import analyze_random_walk_parameters
+        from time_series import TimeSeries
+        
+        print(f"Loading data from: {analysis_file}")
+        ts = TimeSeries()
+        ts.load_and_preprocess(analysis_file)
+        
+        print("Running random walk parameter analysis...")
+        analyzer = analyze_random_walk_parameters(ts, window_size=2)
+        
+        # Save results
+        rw_json = f"{base_name}_random_walk.json"
+        rw_csv = f"{base_name}_random_walk.csv"
+        rw_plot = f"{base_name}_random_walk_evolution.png"
+        rw_corr = f"{base_name}_random_walk_correlations.png"
+        
+        analyzer.export_results(rw_json, format='json')
+        analyzer.export_results(rw_csv, format='csv')
+        analyzer.plot_parameter_evolution(rw_plot)
+        analyzer.plot_correlation_matrix(rw_corr)
+        
+        print(f"✅ Random walk analysis completed: {rw_json}, {rw_csv}")
+        
+    except Exception as e:
+        print(f"❌ Random walk analysis failed: {e}")
     
     print("\n✅ Complete workflow finished!")
     print(f"Check for files starting with '{base_name}_' for all results.")
@@ -859,10 +1138,16 @@ def show_help():
     print("   - PWD = Probability of wet day following dry day")
     print("   - alpha, beta = Shape parameters for precipitation amounts")
     print()
-    print("5. WAVE ANALYSIS (ADVANCED)")
-    print("   - Analyze how parameters change over time")
-    print("   - Identify cyclic patterns and long-term trends")
-    print("   - Generate projections for future parameter values")
+    print("5. RANDOM WALK ANALYSIS (RECOMMENDED)")
+    print("   - Calculate volatility and reversion rates for each parameter")
+    print("   - Enables mean-reverting random walk modeling")
+    print("   - Captures long-term variability and correlation patterns")
+    print("   - Based on published methodology for realistic simulations")
+    print()
+    print("6. WAVE ANALYSIS (EXPERIMENTAL)")
+    print("   - Alternative approach using frequency analysis")
+    print("   - May not be suitable for all parameters")
+    print("   - Consider random walk analysis instead")
     print()
     print("WHAT YOU GET:")
     print("- Parameter files for precipitation simulation models")
@@ -1679,30 +1964,35 @@ def main():
                 run_param_calculation(data_file)
             
         elif choice == '7':
+            data_file = select_time_series_file("random walk parameter analysis")
+            if data_file:
+                run_random_walk_analysis(data_file)
+            
+        elif choice == '8':
             data_file = select_time_series_file("wave analysis")
             if data_file:
                 run_wave_analysis(data_file)
             
-        elif choice == '8':
+        elif choice == '9':
             data_file = select_time_series_file("complete workflow")
             if data_file:
                 run_complete_workflow(data_file)
             
-        elif choice == '9':
+        elif choice == '10':
             show_help()
             
-        elif choice == '10':
+        elif choice == '11':
             change_output_directory()
             
-        elif choice == '11':
+        elif choice == '12':
             show_current_config()
             
-        elif choice == '12' or choice.lower() in ['exit', 'quit', 'q']:
+        elif choice == '13' or choice.lower() in ['exit', 'quit', 'q']:
             print("Goodbye!")
             break
             
         else:
-            print(f"Invalid choice '{choice}'. Please enter 1-12.")
+            print(f"Invalid choice '{choice}'. Please enter 1-13.")
             input("Press Enter to continue...")
 
 if __name__ == "__main__":

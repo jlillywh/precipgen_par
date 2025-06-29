@@ -254,11 +254,13 @@ class PrecipGenPARWave:
                 for i, peak_idx in enumerate(peak_indices[:num_components]):
                     frequency = frequencies_pos[peak_idx]
                     period = 1.0 / frequency if frequency > 0 else np.inf
-                    amplitude = magnitude_spectrum[peak_idx]
+                    
+                    # Correct amplitude scaling for real signals
+                    amplitude = 2.0 * magnitude_spectrum[peak_idx] / n
                     power = power_spectrum[peak_idx]
                     
-                    # Fit sine wave to get phase
-                    phase = self._estimate_phase(years, values, frequency)
+                    # Fit sine wave to get phase using detrended data
+                    phase = self._estimate_phase(years, detrended_values, frequency)
                     
                     component = {
                         'frequency': frequency,
@@ -450,6 +452,14 @@ class PrecipGenPARWave:
                 
                 wave = amplitude * np.sin(2 * np.pi * frequency * target_years + phase)
                 synthetic_values += wave
+            
+            # Apply bounds constraints for probability parameters
+            if param in ['PWW', 'PWD']:
+                # Constrain to [0, 1] for probability parameters
+                synthetic_values = np.clip(synthetic_values, 0.0, 1.0)
+            elif param in ['alpha', 'beta']:
+                # Constrain to positive values for gamma parameters
+                synthetic_values = np.clip(synthetic_values, 0.01, None)  # Small minimum to avoid zero
             
             synthetic_data[param] = synthetic_values
         

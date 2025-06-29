@@ -191,7 +191,41 @@ python cli.py info input.csv
 - Wet/dry day statistics
 - Basic precipitation statistics
 
-### 5. `test` - Run Test Suite
+### 5. `random-walk` - Random Walk Parameter Analysis (RECOMMENDED)
+Analyze precipitation parameters for mean-reverting random walk modeling. This is the **recommended approach** for capturing long-term variability in precipitation parameters.
+
+```bash
+python cli.py random-walk input.csv -o random_walk_results
+python cli.py random-walk input.csv --window-years 2 --create-plots -o rw_analysis
+```
+
+**What it calculates:**
+- **Volatility (σ)**: Annual random fluctuation magnitude for each parameter
+- **Reversion Rate (r)**: Speed of return to long-term mean values
+- **Parameter Correlations**: For Gaussian copula dependency modeling
+- **Long-term Means**: Target values for the random walk process
+
+**Methodology:**
+- Uses overlapping 2-year windows (based on published research)
+- Estimates volatility from first-order differences: σ = std(Δx)
+- Estimates reversion rate via regression: Δx = r(μ - x₋₁) + ε
+- Calculates PWW-PWD, PWW-alpha correlations for realistic simulations
+
+**Options:**
+- `--window-years`: Window size for parameter extraction (default: 2)
+- `--create-plots`: Generate diagnostic and correlation plots
+- `--start-year`, `--end-year`: Limit analysis to specific time period
+
+**Output Files:**
+- `*_random_walk_params.json`: Complete analysis results with metadata
+- `*_random_walk_summary.csv`: Summary table of volatilities and reversion rates
+- `*_parameter_sequence.csv`: Historical parameter values from sliding windows
+- `*_random_walk_evolution.png`: Parameter evolution plots (if --create-plots)
+- `*_correlation_matrix.png`: Parameter correlation heatmap (if --create-plots)
+
+**Use Case:** These parameters enable realistic long-term precipitation simulation by allowing parameters to fluctuate around historical means while maintaining proper correlations.
+
+### 6. `test` - Run Test Suite
 Run the project's test suite to verify functionality.
 
 ```bash
@@ -202,7 +236,7 @@ python cli.py test
 
 The CLI also includes powerful utilities for discovering and downloading precipitation data from the Global Historical Climatology Network (GHCN) database.
 
-### 6. `list-zones` - List Climate Zones
+### 7. `list-zones` - List Climate Zones
 Display available climate zones and their geographic coverage.
 
 ```bash
@@ -214,7 +248,7 @@ python cli.py list-zones
 - Geographic coordinate ranges for each zone
 - Description of each climate type
 
-### 7. `find-stations` - Find Stations by Climate Zone
+### 8. `find-stations` - Find Stations by Climate Zone
 Search for GHCN stations in specific climate zones that meet quality criteria.
 
 ```bash
@@ -234,7 +268,7 @@ python cli.py find-stations arid --inventory-file my_inventory.txt
 - `--download`: Automatically download GHCN inventory if not found
 - `--inventory-file`: Specify custom inventory file path
 
-### 8. `download-station` - Download Station Data
+### 9. `download-station` - Download Station Data
 Download complete dataset for a specific GHCN station.
 
 ```bash
@@ -247,7 +281,7 @@ python cli.py download-station USC00050848  # Uses default filename
 - Includes metadata (station name, location, coverage, etc.)
 - Ready for analysis with other CLI commands
 
-### 9. `station-info` - Get Station Information
+### 10. `station-info` - Get Station Information
 Get basic information about a GHCN station without downloading the full dataset.
 
 ```bash
@@ -298,19 +332,25 @@ python cli.py params "data/precipitation.csv" \
     --start-year 1950 --end-year 2020 \
     -o "results/monthly_params.csv"
 
-# 4. Calculate window statistics
+# 4. Calculate random walk parameters (RECOMMENDED for long-term variability)
+python cli.py random-walk "data/precipitation.csv" \
+    --start-year 1950 --end-year 2020 \
+    --create-plots \
+    -o "results/random_walk_analysis"
+
+# 5. Calculate window statistics (alternative approach)
 python cli.py window "data/precipitation.csv" \
     --start-year 1950 --end-year 2020 \
     --window-years 5 \
     -o "results/window_stats.csv"
 
-# 5. Run extended analysis
+# 6. Run extended analysis
 python cli.py ext-params "data/precipitation.csv" \
     --start-year 1950 --end-year 2020 \
     --window-years 3 \
     -o "results/ext_params"
 
-# 6. Run tests to verify everything works
+# 7. Run tests to verify everything works
 python cli.py test
 ```
 
@@ -320,6 +360,10 @@ python cli.py test
 # The project includes sample data for testing
 python cli.py info "tests/GrandJunction/USW00023066_data.csv"
 python cli.py params "tests/GrandJunction/USW00023066_data.csv" -o sample_params.csv
+
+# RECOMMENDED: Run random walk analysis on sample data
+python cli.py random-walk "tests/GrandJunction/USW00023066_data.csv" \
+    --create-plots -o sample_random_walk
 ```
 
 ### Discover and Analyze New Stations
@@ -340,6 +384,10 @@ python cli.py download-station USC00050848 -o chicago_data.csv
 # 5. Analyze the downloaded data
 python cli.py info chicago_data.csv
 python cli.py params chicago_data.csv --start-year 1950 --end-year 2020 -o chicago_params.csv
+
+# 6. RECOMMENDED: Run random walk analysis for long-term variability modeling
+python cli.py random-walk chicago_data.csv --start-year 1950 --end-year 2020 \
+    --create-plots -o chicago_random_walk
 ```
 
 ### Compare Multiple Stations
