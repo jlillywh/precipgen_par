@@ -459,6 +459,8 @@ def cmd_station_info(args):
 
 def cmd_gap_analysis(args):
     """Perform gap analysis on precipitation dataset to identify missing data patterns."""
+    from gap_analyzer import analyze_yearly_gaps
+    
     timeseries = load_data(args.input, args.start_year, args.end_year)
     data = timeseries.get_data()
     
@@ -536,6 +538,42 @@ def cmd_gap_analysis(args):
         print(f"⚠️  Proceed with caution - {results['long_gap_count']} long gap(s) detected")
     else:
         print(f"⚠️  Consider data preprocessing before parameter calculation")
+    
+    # Add yearly gap analysis
+    print(f"\n📅 YEARLY GAP ANALYSIS")
+    print(f"=" * 60)
+    
+    yearly_results = analyze_yearly_gaps(data, args.column)
+    if yearly_results:
+        yearly_stats = yearly_results['summary_statistics']
+        significant_years = yearly_results['years_with_significant_gaps']
+        
+        print(f"📈 Years analyzed: {yearly_stats['total_years_analyzed']}")
+        print(f"📊 Average missing days per year: {yearly_stats['avg_missing_days_per_year']}")
+        print(f"🔺 Maximum missing days in any year: {yearly_stats['max_missing_days_any_year']}")
+        print(f"⏱️  Maximum consecutive missing: {yearly_stats['max_consecutive_missing_any_year']} days")
+        print(f"✅ Years with no gaps: {yearly_stats['years_with_no_gaps']}")
+        
+        if significant_years:
+            print(f"\n⚠️  YEARS WITH SIGNIFICANT GAPS (>{yearly_stats['significant_threshold']} days):")
+            print(f"   Found {len(significant_years)} years that may impact statistical modeling")
+            print(f"   {'Year':<8} {'Missing':<8} {'Max Run':<8} {'% Missing':<10}")
+            print(f"   {'-'*8} {'-'*8} {'-'*8} {'-'*10}")
+            
+            for year, data in list(significant_years.items())[:10]:  # Show top 10
+                print(f"   {year:<8} {data['total_missing_days']:<8} {data['max_consecutive_missing']:<8} {data['percent_missing']:<10}%")
+            
+            if len(significant_years) > 10:
+                print(f"   ... and {len(significant_years) - 10} more years")
+            
+            print(f"\n   💡 Consider these years carefully for statistical modeling")
+            print(f"   💡 Filled data in these years may bias PrecipGen parameters")
+        else:
+            print(f"✅ No years with >{yearly_stats['significant_threshold']} missing days found")
+            print(f"✅ All years appear suitable for statistical analysis")
+    else:
+        print("❌ Yearly analysis could not be completed")
+    
       # Save detailed results if requested
     if args.output:
         output_path = get_output_path(args.output)
@@ -544,7 +582,10 @@ def cmd_gap_analysis(args):
         summary_data = {
             'Metric': [
                 'Analysis Period Start', 'Analysis Period End', 'Total Days',
-                'Missing Days', 'Data Coverage (%)', 'Short Gaps', 'Long Gaps'
+                'Missing Days', 'Data Coverage (%)', 'Short Gaps', 'Long Gaps',
+                'Years Analyzed', 'Years with Significant Gaps', 
+                'Avg Missing Days/Year', 'Max Missing Days (Any Year)',
+                'Max Consecutive Missing Days'
             ],
             'Value': [
                 results['min_date'].strftime('%Y-%m-%d'),
@@ -553,7 +594,12 @@ def cmd_gap_analysis(args):
                 results['total_missing_days'],
                 f"{coverage_pct:.2f}",
                 results['short_gap_count'],
-                results['long_gap_count']
+                results['long_gap_count'],
+                yearly_stats.get('total_years_analyzed', 'N/A'),
+                yearly_stats.get('years_with_significant_gaps', 'N/A'),
+                yearly_stats.get('avg_missing_days_per_year', 'N/A'),
+                yearly_stats.get('max_missing_days_any_year', 'N/A'),
+                yearly_stats.get('max_consecutive_missing_any_year', 'N/A')
             ]
         }
         summary_df = pd.DataFrame(summary_data)
@@ -562,7 +608,7 @@ def cmd_gap_analysis(args):
         base_name = Path(output_path).stem
         base_dir = Path(output_path).parent
         
-        summary_file = base_dir / f"{base_name}_summary.csv"
+        summary_file = base_dir / f"{base_name}_gap_analysis_summary.csv"
         summary_df.to_csv(summary_file, index=False)
         print(f"\n💾 Gap analysis summary saved to: {summary_file}")
         
@@ -571,6 +617,24 @@ def cmd_gap_analysis(args):
             gaps_file = base_dir / f"{base_name}_long_gaps.csv"
             results['long_gaps'].to_csv(gaps_file, index=False)
             print(f"💾 Long gaps details saved to: {gaps_file}")
+            
+        # Save yearly analysis details if significant years exist
+        if yearly_results and yearly_results['years_with_significant_gaps']:
+            yearly_data = []
+            for year, data in yearly_results['years_with_significant_gaps'].items():
+                yearly_data.append({
+                    'Year': year,
+                    'Total_Missing_Days': data['total_missing_days'],
+                    'Max_Consecutive_Missing': data['max_consecutive_missing'],
+                    'Total_Days_in_Year': data['total_days_in_year'],
+                    'Percent_Missing': data['percent_missing']
+                })
+            
+            if yearly_data:
+                yearly_df = pd.DataFrame(yearly_data)
+                yearly_file = base_dir / f"{base_name}_significant_years.csv"
+                yearly_df.to_csv(yearly_file, index=False)
+                print(f"💾 Significant years analysis saved to: {yearly_file}")
     
     print(f"\n" + "=" * 60)
     return 0 if coverage_pct >= 80 else 1  # Return error code if coverage is poor
@@ -964,7 +1028,7 @@ def cmd_wave_analysis(args):
 
 
 def cmd_fill_data(args):
-    """Fill missing values in precipitation data using meteorological best practices."""
+    """Fill missing values in precipitation data using smart interpolation."""
     print(f"Filling missing data in {args.input_file}...")
     
     # Check if input file exists
@@ -978,10 +1042,7 @@ def cmd_fill_data(args):
         output_file=args.output,
         date_col=args.date_col,
         precip_col=args.precip_col,
-        max_fill_gap_days=args.max_gap_days,
-        min_similarity_threshold=args.min_similarity,
-        seasonal_window_days=args.seasonal_window,
-        min_years_for_climatology=args.min_years_climatology
+        max_fill_gap_days=args.max_gap_days
     )
     
     # Print summary
@@ -1032,8 +1093,11 @@ Examples:
   %(prog)s download-station USW00023066 -o denver_data.csv
   %(prog)s station-info USW00023066
   
-  # Fill missing data
+  # Fill missing data (Note: May affect statistics for PrecipGen modeling)
   %(prog)s fill-data data.csv -o filled_data.csv
+
+⚠️  IMPORTANT: The fill-data command uses deterministic gap filling that may
+affect precipitation statistics needed for PrecipGen stochastic modeling.
         """
     )
     
@@ -1186,20 +1250,14 @@ Examples:
     # Data filling subparser
     fill_parser = subparsers.add_parser(
         'fill-data',
-        help='Fill missing values in precipitation data using meteorological best practices'
+        help='Fill missing values in precipitation data using smart interpolation'
     )
     fill_parser.add_argument('input_file', help='Input CSV file with missing data')
     fill_parser.add_argument('-o', '--output', required=True, help='Output file for filled data')
     fill_parser.add_argument('--date-col', default='DATE', help='Date column name (default: DATE)')
     fill_parser.add_argument('--precip-col', default='PRCP', help='Precipitation column name (default: PRCP)')
-    fill_parser.add_argument('--max-gap-days', type=int, default=30, 
-                           help='Maximum gap size to attempt filling (default: 30)')
-    fill_parser.add_argument('--min-similarity', type=float, default=0.7,
-                           help='Minimum similarity threshold for analogous years (default: 0.7)')
-    fill_parser.add_argument('--seasonal-window', type=int, default=15,
-                           help='Days around target date for climatological normal (default: 15)')
-    fill_parser.add_argument('--min-years-climatology', type=int, default=10,
-                           help='Minimum years needed for climatological normal (default: 10)')
+    fill_parser.add_argument('--max-gap-days', type=int, default=365, 
+                           help='Maximum gap size to attempt filling (default: 365)')
     fill_parser.set_defaults(func=cmd_fill_data)
   
     # Parse arguments

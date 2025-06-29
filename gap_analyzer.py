@@ -132,6 +132,104 @@ def analyze_gaps(df, data_col_name, gap_threshold):
 
     return results
 
+def analyze_yearly_gaps(df, data_col_name, significant_threshold=90):
+    """
+    Analyze missing data patterns by year, focusing on years with significant gaps.
+    
+    Args:
+        df (pd.DataFrame): Input DataFrame with DateTimeIndex, sorted.
+        data_col_name (str): The name of the data column to analyze.
+        significant_threshold (int): Threshold for flagging years with significant gaps (default: 90 days)
+    
+    Returns:
+        dict: Dictionary with yearly analysis including:
+            - years_with_significant_gaps: Years with >threshold missing days
+            - summary_statistics: Overall statistics about yearly gaps
+    """
+    if df is None or df.empty:
+        print(f"Error: Input DataFrame is empty or None, cannot analyze yearly patterns for '{data_col_name}'.", file=sys.stderr)
+        return None
+    if data_col_name not in df.columns:
+        print(f"Error: Data column '{data_col_name}' not found in DataFrame for yearly analysis.", file=sys.stderr)
+        return None
+    if not isinstance(df.index, pd.DatetimeIndex):
+        print(f"Error: DataFrame index is not a DatetimeIndex for yearly analysis of '{data_col_name}'.", file=sys.stderr)
+        return None
+
+    print(f"\n--- Analyzing Yearly Gap Patterns for Column: '{data_col_name}' ---")
+
+    # Prepare data with year column
+    df_copy = df.copy()
+    df_copy['year'] = df_copy.index.year
+    
+    # Calculate missing days per year
+    missing_by_year = df_copy.groupby('year')[data_col_name].apply(lambda x: x.isna().sum()).to_dict()
+    
+    # Calculate maximum consecutive missing days per year
+    max_consecutive_by_year = {}
+    
+    for year in missing_by_year.keys():
+        year_data = df_copy[df_copy['year'] == year]
+        if len(year_data) == 0:
+            max_consecutive_by_year[year] = 0
+            continue
+            
+        # Find maximum consecutive missing days in this year
+        missing_mask = year_data[data_col_name].isna()
+        max_consecutive = 0
+        current_consecutive = 0
+        
+        for is_missing in missing_mask:
+            if is_missing:
+                current_consecutive += 1
+                max_consecutive = max(max_consecutive, current_consecutive)
+            else:
+                current_consecutive = 0
+        
+        max_consecutive_by_year[year] = max_consecutive
+    
+    # Filter to years with >significant_threshold missing days
+    significant_years = {
+        year: {
+            'total_missing_days': missing_days,
+            'max_consecutive_missing': max_consecutive_by_year.get(year, 0),
+            'total_days_in_year': len(df_copy[df_copy['year'] == year]),
+            'percent_missing': round(missing_days / len(df_copy[df_copy['year'] == year]) * 100, 1)
+        }
+        for year, missing_days in missing_by_year.items()
+        if missing_days > significant_threshold
+    }
+    
+    # Calculate summary statistics
+    all_missing_counts = list(missing_by_year.values())
+    all_consecutive_counts = list(max_consecutive_by_year.values())
+    
+    summary_stats = {
+        'total_years_analyzed': len(missing_by_year),
+        'years_with_significant_gaps': len(significant_years),
+        'avg_missing_days_per_year': round(sum(all_missing_counts) / len(all_missing_counts), 1) if all_missing_counts else 0,
+        'max_missing_days_any_year': max(all_missing_counts) if all_missing_counts else 0,
+        'max_consecutive_missing_any_year': max(all_consecutive_counts) if all_consecutive_counts else 0,
+        'years_with_no_gaps': sum(1 for count in all_missing_counts if count == 0),
+        'significant_threshold': significant_threshold
+    }
+    
+    print(f"Years analyzed: {summary_stats['total_years_analyzed']}")
+    print(f"Years with >{significant_threshold} missing days: {summary_stats['years_with_significant_gaps']}")
+    print(f"Average missing days per year: {summary_stats['avg_missing_days_per_year']}")
+    print(f"Maximum missing days in any year: {summary_stats['max_missing_days_any_year']}")
+    print(f"Maximum consecutive missing days: {summary_stats['max_consecutive_missing_any_year']}")
+    
+    return {
+        'summary_statistics': summary_stats,
+        'years_with_significant_gaps': dict(sorted(significant_years.items())),
+        'notes': [
+            f"Only years with >{significant_threshold} missing days are flagged as 'significant'",
+            "Years with extensive gaps may not be suitable for statistical modeling",
+            "Consider the impact of filled data on downstream precipitation statistics"
+        ]
+    }
+
 if __name__ == '__main__':
     # Example usage requires a prepared DataFrame (like one from data_loader)
     print("\n--- Testing Gap Analyzer ---")
@@ -204,3 +302,16 @@ if __name__ == '__main__':
             else:
                 print(f"  {key}:")
                 print(value.to_string(index=False))
+
+    print("-" * 20)
+
+    # Yearly analysis test
+    print("\n--- Yearly Gap Analysis Test ---")
+    yearly_results = analyze_yearly_gaps(test_df, 'Value', significant_threshold=2)
+    if yearly_results:
+        print("\nYearly Analysis Results:")
+        for year, stats in yearly_results['years_with_significant_gaps'].items():
+            print(f"Year {year}: {stats}")
+        print("\nSummary Statistics:")
+        for key, value in yearly_results['summary_statistics'].items():
+            print(f"  {key}: {value}")

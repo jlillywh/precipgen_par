@@ -12,8 +12,29 @@ class TimeSeries:
 
     def load_and_preprocess(self, file_path):
         try:
-            # Read the CSV file, skipping the first 6 lines of metadata and specifying the header row
-            df = pd.read_csv(file_path, skiprows=6, header=0)
+            # Detect GHCN format by checking the first few lines for DATE column header
+            with open(file_path, 'r') as f:
+                first_lines = [f.readline().strip() for _ in range(10)]
+            
+            # Look for DATE column header to determine skip rows
+            skip_rows = 0
+            for i, line in enumerate(first_lines):
+                if 'DATE' in line.upper() and ('PRCP' in line.upper() or 'TMAX' in line.upper()):
+                    skip_rows = i
+                    break
+            
+            # Load the CSV with appropriate skip rows
+            if skip_rows > 0:
+                logger.info(f"Detected GHCN format, skipping {skip_rows} metadata lines")
+                df = pd.read_csv(file_path, skiprows=skip_rows, header=0)
+            else:
+                # Check if first line looks like headers
+                if 'DATE' in first_lines[0].upper() and 'PRCP' in first_lines[0].upper():
+                    df = pd.read_csv(file_path, header=0)
+                else:
+                    # Fallback: assume GHCN format with 6 metadata lines
+                    logger.warning("Could not detect header line, assuming GHCN format with 6 metadata lines")
+                    df = pd.read_csv(file_path, skiprows=6, header=0)
             
             # Convert 'DATE' column to datetime
             df['DATE'] = pd.to_datetime(df['DATE'])

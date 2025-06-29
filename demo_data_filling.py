@@ -393,9 +393,9 @@ def main():
         print(f"  • Data quality: {'Good' if report['validation_results']['quality_good'] else 'Review needed'}")
         
         print(f"\nThe data filling module successfully handles:")
-        print(f"  ✓ Short gaps (1-2 days) using linear interpolation")
-        print(f"  ✓ Medium gaps (3-7 days) using climatological normals")
-        print(f"  ✓ Long gaps (8+ days) using analogous year method")
+        print(f"  ✓ Short gaps (1-7 days) using linear interpolation")
+        print(f"  ✓ Medium gaps (8-90 days) using climatological normals")
+        print(f"  ✓ Long gaps (91+ days) using analogous year method")
         print(f"  ✓ Statistical validation and quality control")
         print(f"  ✓ Preservation of seasonal patterns and extreme events")
         

@@ -56,6 +56,14 @@ test_output_*
 ghcnd-inventory.txt
 *.docx
 *.gsm
+
+# User-specific files and directories to exclude
+90
+boulder_stations.csv
+filled_denver_filling_report.json
+filled_grand_junction_filling_report.json
+precipgen_config.json
+test_sean/
 # Wave analysis output directories
 wave_output/
 demo_output/
