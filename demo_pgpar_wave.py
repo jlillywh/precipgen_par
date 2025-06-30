@@ -18,8 +18,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from time_series import TimeSeries
 from pgpar_wave import PrecipGenPARWave, analyze_precipgen_parameter_waves
 
+# Import project-aware output functions
+try:
+    from easy_start import get_output_path, get_output_directory
+except ImportError:
+    # Fallback for standalone execution
+    def get_output_path(filename):
+        return filename
+    def get_output_directory():
+        return "."
 
-def demo_parameter_wave_analysis(data_file: str, output_dir: str = "wave_output"):
+
+def demo_parameter_wave_analysis(data_file: str, output_dir: str = None):
     """
     Demonstrate complete parameter wave analysis workflow.
     
@@ -28,11 +38,16 @@ def demo_parameter_wave_analysis(data_file: str, output_dir: str = "wave_output"
     data_file : str
         Path to precipitation data CSV file
     output_dir : str
-        Directory to save output files
+        Directory to save output files (default: uses project-aware output)
     """
     print("=" * 60)
     print("PrecipGen Parameter Wave Analysis Demo")
     print("=" * 60)
+    
+    if output_dir is None:
+        # Use project-aware output directory
+        base_output = get_output_directory()
+        output_dir = os.path.join(base_output, "wave_output")
     
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)

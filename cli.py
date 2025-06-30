@@ -28,17 +28,20 @@ from find_stations import fetch_ghcn_inventory, parse_ghcn_inventory, fetch_stat
 from gap_analyzer import analyze_gaps
 from data_filler import fill_precipitation_data  # Add import for data filler
 
+# Import project-aware output functions
+from easy_start import get_output_path as get_project_output_path, get_project_aware_output_path
 
-def get_output_path(filename, subdirectory="tests"):
+
+def get_output_path(filename, input_file=None):
     """
-    Get output path, ensuring test/example files go to tests directory.
+    Get project-aware output path for CLI operations.
     
     Args:
         filename (str): The filename or path
-        subdirectory (str): Default subdirectory for outputs (default: "tests")
+        input_file (str): Optional input file to determine project context
     
     Returns:
-        str: Full path with tests directory if filename is just a basename
+        str: Full path with project-aware output directory
     """
     if filename is None:
         return None
@@ -46,11 +49,18 @@ def get_output_path(filename, subdirectory="tests"):
     # Convert to Path object for easier manipulation
     path = Path(filename)
     
-    # If it's just a filename (no directory), put it in tests/
+    # If it's just a filename (no directory), use project-aware output
     if len(path.parts) == 1:
-        tests_dir = Path(subdirectory)
-        tests_dir.mkdir(exist_ok=True)
-        return str(tests_dir / filename)
+        if input_file:
+            # Try to use project-aware path based on input file location
+            try:
+                return get_project_aware_output_path(input_file, filename)
+            except:
+                # Fall back to global output path
+                return get_project_output_path(filename)
+        else:
+            # Use global output path
+            return get_project_output_path(filename)
     
     # If it's already a full path, use as-is
     return str(path)
@@ -84,7 +94,7 @@ def cmd_params(args):
     print(params)
     
     if args.output:
-        output_path = get_output_path(args.output)
+        output_path = get_output_path(args.output, args.input)
         params.to_csv(output_path, index=True)
         print(f"\nParameters saved to: {output_path}")
 
@@ -106,7 +116,7 @@ def cmd_window_params(args):
             'Volatility': volatilities,
             'Reversion_Rate': reversion_rates
         })
-        output_path = get_output_path(args.output)
+        output_path = get_output_path(args.output, args.input)
         results_df.to_csv(output_path, index=False)
         print(f"\nWindow parameters saved to: {output_path}")
 
@@ -116,7 +126,10 @@ def cmd_ext_params(args):
     timeseries = load_data(args.input, args.start_year, args.end_year)
     
     print(f"Calculating extended parameters using {args.window_years}-year windows...")
-    ext_params = calculate_ext_params(timeseries.get_data(), args.window_years)
+    
+    # Prepare output path for ext_params function
+    output_path_for_ext = get_output_path(args.output, args.input) if args.output else None
+    ext_params = calculate_ext_params(timeseries.get_data(), args.window_years, output_path_for_ext)
     
     print("\nExtended Parameters (Distribution fits):")
     for param_name, param_data in ext_params.items():
@@ -125,7 +138,7 @@ def cmd_ext_params(args):
     
     if args.output:
         # Save each parameter's distribution data to separate files
-        output_path = get_output_path(args.output)
+        output_path = get_output_path(args.output, args.input)
         base_name = Path(output_path).stem
         base_dir = Path(output_path).parent
         
@@ -577,7 +590,7 @@ def cmd_gap_analysis(args):
     
       # Save detailed results if requested
     if args.output:
-        output_path = get_output_path(args.output)
+        output_path = get_output_path(args.output, args.input)
         
         # Create a comprehensive results file
         summary_data = {
@@ -981,7 +994,7 @@ def cmd_wave_analysis(args):
     
     # Save outputs
     if args.output:
-        output_base = get_output_path(args.output)
+        output_base = get_output_path(args.output, args.input)
         output_dir = Path(output_base).parent
         output_stem = Path(output_base).stem
         

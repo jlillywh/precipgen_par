@@ -15,6 +15,235 @@ from datetime import datetime
 # Configuration file for user preferences
 CONFIG_FILE = "precipgen_config.json"
 
+# Major cities database for easy station searching
+MAJOR_CITIES = {
+    # United States
+    "new york": (40.7128, -74.0060, "New York, NY"),
+    "los angeles": (34.0522, -118.2437, "Los Angeles, CA"),
+    "chicago": (41.8781, -87.6298, "Chicago, IL"),
+    "houston": (29.7604, -95.3698, "Houston, TX"),
+    "phoenix": (33.4484, -112.0740, "Phoenix, AZ"),
+    "philadelphia": (39.9526, -75.1652, "Philadelphia, PA"),
+    "san antonio": (29.4241, -98.4936, "San Antonio, TX"),
+    "san diego": (32.7157, -117.1611, "San Diego, CA"),
+    "dallas": (32.7767, -96.7970, "Dallas, TX"),
+    "san jose": (37.3382, -121.8863, "San Jose, CA"),
+    "austin": (30.2672, -97.7431, "Austin, TX"),
+    "jacksonville": (30.3322, -81.6557, "Jacksonville, FL"),
+    "fort worth": (32.7555, -97.3308, "Fort Worth, TX"),
+    "columbus": (39.9612, -82.9988, "Columbus, OH"),
+    "san francisco": (37.7749, -122.4194, "San Francisco, CA"),
+    "charlotte": (35.2271, -80.8431, "Charlotte, NC"),
+    "indianapolis": (39.7684, -86.1581, "Indianapolis, IN"),
+    "seattle": (47.6062, -122.3321, "Seattle, WA"),
+    "denver": (39.7392, -104.9903, "Denver, CO"),
+    "washington": (38.9072, -77.0369, "Washington, DC"),
+    "boston": (42.3601, -71.0589, "Boston, MA"),
+    "el paso": (31.7619, -106.4850, "El Paso, TX"),
+    "detroit": (42.3314, -83.0458, "Detroit, MI"),
+    "nashville": (36.1627, -86.7816, "Nashville, TN"),
+    "portland": (45.5152, -122.6784, "Portland, OR"),
+    "memphis": (35.1495, -90.0490, "Memphis, TN"),
+    "oklahoma city": (35.4676, -97.5164, "Oklahoma City, OK"),
+    "las vegas": (36.1699, -115.1398, "Las Vegas, NV"),
+    "louisville": (38.2527, -85.7585, "Louisville, KY"),
+    "baltimore": (39.2904, -76.6122, "Baltimore, MD"),
+    "milwaukee": (43.0389, -87.9065, "Milwaukee, WI"),
+    "albuquerque": (35.0844, -106.6504, "Albuquerque, NM"),
+    "tucson": (32.2226, -110.9747, "Tucson, AZ"),
+    "fresno": (36.7378, -119.7871, "Fresno, CA"),
+    "sacramento": (38.5816, -121.4944, "Sacramento, CA"),
+    "mesa": (33.4152, -111.8315, "Mesa, AZ"),
+    "kansas city": (39.0997, -94.5786, "Kansas City, MO"),
+    "atlanta": (33.7490, -84.3880, "Atlanta, GA"),
+    "colorado springs": (38.8339, -104.8214, "Colorado Springs, CO"),
+    "omaha": (41.2565, -95.9345, "Omaha, NE"),
+    "raleigh": (35.7796, -78.6382, "Raleigh, NC"),
+    "miami": (25.7617, -80.1918, "Miami, FL"),
+    "cleveland": (41.4993, -81.6944, "Cleveland, OH"),
+    "tulsa": (36.1540, -95.9928, "Tulsa, OK"),
+    "oakland": (37.8044, -122.2711, "Oakland, CA"),
+    "minneapolis": (44.9778, -93.2650, "Minneapolis, MN"),
+    "wichita": (37.6872, -97.3301, "Wichita, KS"),
+    "arlington": (32.7357, -97.1081, "Arlington, TX"),
+    "new orleans": (29.9511, -90.0715, "New Orleans, LA"),
+    "bakersfield": (35.3733, -119.0187, "Bakersfield, CA"),
+    "tampa": (27.9506, -82.4572, "Tampa, FL"),
+    "honolulu": (21.3099, -157.8581, "Honolulu, HI"),
+    "aurora": (39.7294, -104.8319, "Aurora, CO"),
+    "anaheim": (33.8366, -117.9143, "Anaheim, CA"),
+    "santa ana": (33.7455, -117.8677, "Santa Ana, CA"),
+    "st. louis": (38.6270, -90.1994, "St. Louis, MO"),
+    "riverside": (33.9533, -117.3962, "Riverside, CA"),
+    "corpus christi": (27.8006, -97.3964, "Corpus Christi, TX"),
+    "lexington": (38.0406, -84.5037, "Lexington, KY"),
+    "pittsburgh": (40.4406, -79.9959, "Pittsburgh, PA"),
+    "anchorage": (61.2181, -149.9003, "Anchorage, AK"),
+    "stockton": (37.9577, -121.2908, "Stockton, CA"),
+    "cincinnati": (39.1031, -84.5120, "Cincinnati, OH"),
+    "st. paul": (44.9537, -93.0900, "St. Paul, MN"),
+    "toledo": (41.6528, -83.5379, "Toledo, OH"),
+    "greensboro": (36.0726, -79.7920, "Greensboro, NC"),
+    "newark": (40.7357, -74.1724, "Newark, NJ"),
+    "plano": (33.0198, -96.6989, "Plano, TX"),
+    "henderson": (36.0395, -114.9817, "Henderson, NV"),
+    "lincoln": (40.8136, -96.7026, "Lincoln, NE"),
+    "buffalo": (42.8864, -78.8784, "Buffalo, NY"),
+    "jersey city": (40.7178, -74.0431, "Jersey City, NJ"),
+    "chula vista": (32.6401, -117.0842, "Chula Vista, CA"),
+    "fort wayne": (41.0793, -85.1394, "Fort Wayne, IN"),
+    "orlando": (28.5383, -81.3792, "Orlando, FL"),
+    "st. petersburg": (27.7663, -82.6404, "St. Petersburg, FL"),
+    "chandler": (33.3062, -111.8413, "Chandler, AZ"),
+    "laredo": (27.5306, -99.4803, "Laredo, TX"),
+    "norfolk": (36.8468, -76.2852, "Norfolk, VA"),
+    "durham": (35.9940, -78.8986, "Durham, NC"),
+    "madison": (43.0731, -89.4012, "Madison, WI"),
+    "lubbock": (33.5779, -101.8552, "Lubbock, TX"),
+    "irvine": (33.6846, -117.8265, "Irvine, CA"),
+    "winston-salem": (36.0999, -80.2442, "Winston-Salem, NC"),
+    "glendale": (33.5387, -112.1860, "Glendale, AZ"),
+    "garland": (32.9126, -96.6389, "Garland, TX"),
+    "hialeah": (25.8576, -80.2781, "Hialeah, FL"),
+    "reno": (39.5296, -119.8138, "Reno, NV"),
+    "chesapeake": (36.7682, -76.2875, "Chesapeake, VA"),
+    "gilbert": (33.3528, -111.7890, "Gilbert, AZ"),
+    "baton rouge": (30.4515, -91.1871, "Baton Rouge, LA"),
+    "irving": (32.8140, -96.9489, "Irving, TX"),
+    "scottsdale": (33.4942, -111.9261, "Scottsdale, AZ"),
+    "north las vegas": (36.1989, -115.1175, "North Las Vegas, NV"),
+    "fremont": (37.5485, -121.9886, "Fremont, CA"),
+    "boise": (43.6150, -116.2023, "Boise, ID"),
+    "richmond": (37.5407, -77.4360, "Richmond, VA"),
+    "san bernardino": (34.1083, -117.2898, "San Bernardino, CA"),
+    "birmingham": (33.5186, -86.8104, "Birmingham, AL"),
+    "spokane": (47.6587, -117.4260, "Spokane, WA"),
+    "rochester": (43.1566, -77.6088, "Rochester, NY"),
+    "des moines": (41.5868, -93.6250, "Des Moines, IA"),
+    "modesto": (37.6391, -120.9969, "Modesto, CA"),
+    "fayetteville": (35.0527, -78.8784, "Fayetteville, NC"),
+    "tacoma": (47.2529, -122.4443, "Tacoma, WA"),
+    "oxnard": (34.1975, -119.1771, "Oxnard, CA"),
+    "fontana": (34.0922, -117.4350, "Fontana, CA"),
+    "columbus": (32.4609, -84.9877, "Columbus, GA"),
+    "montgomery": (32.3792, -86.3077, "Montgomery, AL"),
+    "moreno valley": (33.9425, -117.2297, "Moreno Valley, CA"),
+    "shreveport": (32.5252, -93.7502, "Shreveport, LA"),
+    "aurora": (41.7606, -88.3201, "Aurora, IL"),
+    "yonkers": (40.9312, -73.8988, "Yonkers, NY"),
+    "akron": (41.0814, -81.5190, "Akron, OH"),
+    "huntington beach": (33.6961, -118.0011, "Huntington Beach, CA"),
+    "little rock": (34.7465, -92.2896, "Little Rock, AR"),
+    "augusta": (33.4735, -82.0105, "Augusta, GA"),
+    "amarillo": (35.2220, -101.8313, "Amarillo, TX"),
+    "glendale": (34.1425, -118.2551, "Glendale, CA"),
+    "mobile": (30.6954, -88.0399, "Mobile, AL"),
+    "grand rapids": (42.9634, -85.6681, "Grand Rapids, MI"),
+    "salt lake city": (40.7608, -111.8910, "Salt Lake City, UT"),
+    "tallahassee": (30.4518, -84.2807, "Tallahassee, FL"),
+    "huntsville": (34.7304, -86.5861, "Huntsville, AL"),
+    "grand prairie": (32.7460, -96.9978, "Grand Prairie, TX"),
+    "knoxville": (35.9606, -83.9207, "Knoxville, TN"),
+    "worcester": (42.2626, -71.8023, "Worcester, MA"),
+    "newport news": (36.9707, -76.4310, "Newport News, VA"),
+    "brownsville": (25.9018, -97.4975, "Brownsville, TX"),
+    "overland park": (38.9822, -94.6708, "Overland Park, KS"),
+    "santa clarita": (34.3917, -118.5426, "Santa Clarita, CA"),
+    "providence": (41.8240, -71.4128, "Providence, RI"),
+    "garden grove": (33.7739, -117.9415, "Garden Grove, CA"),
+    "chattanooga": (35.0456, -85.3097, "Chattanooga, TN"),
+    "oceanside": (33.1959, -117.3795, "Oceanside, CA"),
+    "jackson": (32.2988, -90.1848, "Jackson, MS"),
+    "fort lauderdale": (26.1224, -80.1373, "Fort Lauderdale, FL"),
+    "santa rosa": (38.4404, -122.7141, "Santa Rosa, CA"),
+    "rancho cucamonga": (34.1064, -117.5931, "Rancho Cucamonga, CA"),
+    "port st. lucie": (27.2939, -80.3501, "Port St. Lucie, FL"),
+    "tempe": (33.4255, -111.9400, "Tempe, AZ"),
+    "ontario": (34.0633, -117.6509, "Ontario, CA"),
+    "vancouver": (45.6387, -122.6615, "Vancouver, WA"),
+    "cape coral": (26.5629, -81.9495, "Cape Coral, FL"),
+    "sioux falls": (43.5446, -96.7311, "Sioux Falls, SD"),
+    "springfield": (39.7817, -89.6501, "Springfield, IL"),
+    "peoria": (40.6936, -89.5890, "Peoria, IL"),
+    "pembroke pines": (26.0070, -80.2962, "Pembroke Pines, FL"),
+    "elk grove": (38.4088, -121.3716, "Elk Grove, CA"),
+    "rockford": (42.2711, -89.0940, "Rockford, IL"),
+    "palmdale": (34.5794, -118.1165, "Palmdale, CA"),
+    "corona": (33.8753, -117.5664, "Corona, CA"),
+    "salinas": (36.6777, -121.6555, "Salinas, CA"),
+    "pomona": (34.0552, -117.7500, "Pomona, CA"),
+    "paterson": (40.9168, -74.1718, "Paterson, NJ"),
+    "joliet": (41.5250, -88.0817, "Joliet, IL"),
+    "pasadena": (34.1478, -118.1445, "Pasadena, CA"),
+    "kansas city": (39.1142, -94.6275, "Kansas City, KS"),
+    "torrance": (33.8358, -118.3406, "Torrance, CA"),
+    "syracuse": (43.0481, -76.1474, "Syracuse, NY"),
+    "bridgeport": (41.1865, -73.1952, "Bridgeport, CT"),
+    "hayward": (37.6688, -122.0808, "Hayward, CA"),
+    "fort wayne": (41.0793, -85.1394, "Fort Wayne, IN"),
+    "corona": (33.8753, -117.5664, "Corona, CA"),
+    "escondido": (33.1192, -117.0864, "Escondido, CA"),
+    "lakewood": (33.8536, -118.1339, "Lakewood, CA"),
+    "naperville": (41.7508, -88.1535, "Naperville, IL"),
+    "dayton": (39.7589, -84.1916, "Dayton, OH"),
+    "hollywood": (26.0112, -80.1494, "Hollywood, FL"),
+    "sunnyvale": (37.3688, -122.0363, "Sunnyvale, CA"),
+    "alexandria": (38.8048, -77.0469, "Alexandria, VA"),
+    "mesquite": (32.7668, -96.5991, "Mesquite, TX"),
+    "hampton": (37.0299, -76.3452, "Hampton, VA"),
+    "pasadena": (29.6910, -95.2091, "Pasadena, TX"),
+    "orange": (33.7879, -117.8531, "Orange, CA"),
+    "savannah": (32.0835, -81.0998, "Savannah, GA"),
+    "cary": (35.7915, -78.7811, "Cary, NC"),
+    "fullerton": (33.8704, -117.9242, "Fullerton, CA"),
+    "warren": (42.5144, -83.0135, "Warren, MI"),
+    "sterling heights": (42.5803, -83.0302, "Sterling Heights, MI"),
+    "west valley city": (40.6916, -112.0011, "West Valley City, UT"),
+    "columbia": (34.0007, -81.0348, "Columbia, SC"),
+    "carrollton": (32.9537, -96.8903, "Carrollton, TX"),
+    "coral springs": (26.2712, -80.2706, "Coral Springs, FL"),
+    "thousand oaks": (34.1706, -118.8376, "Thousand Oaks, CA"),
+    "cedar rapids": (41.9778, -91.6656, "Cedar Rapids, IA"),
+    "saint paul": (44.9537, -93.0900, "Saint Paul, MN"),
+    "west jordan": (40.6097, -111.9391, "West Jordan, UT"),
+    "el monte": (34.0686, -118.0276, "El Monte, CA"),
+    "topeka": (39.0473, -95.6890, "Topeka, KS"),
+    "concord": (37.9780, -122.0311, "Concord, CA"),
+    "stamford": (41.0534, -73.5387, "Stamford, CT"),
+    "olathe": (38.8814, -94.8191, "Olathe, KS"),
+    "hartford": (41.7658, -72.6734, "Hartford, CT"),
+    "fargo": (46.8772, -96.7898, "Fargo, ND"),
+    "evansville": (37.9747, -87.5558, "Evansville, IN"),
+    "round rock": (30.5082, -97.6789, "Round Rock, TX"),
+    "beaumont": (30.0803, -94.1266, "Beaumont, TX"),
+    "independence": (39.0911, -94.4155, "Independence, MO"),
+    "murfreesboro": (35.8456, -86.3903, "Murfreesboro, TN"),
+    "ann arbor": (42.2808, -83.7430, "Ann Arbor, MI"),
+    "springfield": (37.2153, -93.2982, "Springfield, MO"),
+    "berkeley": (37.8715, -122.2730, "Berkeley, CA"),
+    "norman": (35.2226, -97.4395, "Norman, OK"),
+    "billings": (45.7833, -108.5007, "Billings, MT"),
+    "manchester": (42.9956, -71.4548, "Manchester, NH"),
+    "richardson": (32.9483, -96.7298, "Richardson, TX"),
+    "cambridge": (42.3736, -71.1097, "Cambridge, MA"),
+    "allentown": (40.6084, -75.4902, "Allentown, PA"),
+    "abilene": (32.4487, -99.7331, "Abilene, TX"),
+    "boulder": (40.0150, -105.2705, "Boulder, CO")
+}
+
+def search_cities(search_term):
+    """Search for cities matching the search term."""
+    search_term = search_term.lower().strip()
+    matches = []
+    
+    for city_key, (lat, lon, display_name) in MAJOR_CITIES.items():
+        if search_term in city_key:
+            matches.append((city_key, lat, lon, display_name))
+    
+    # Sort by exact match first, then by length
+    matches.sort(key=lambda x: (0 if x[0] == search_term else 1, len(x[0])))
+    return matches
+
 def load_config():
     """Load user configuration from file."""
     if os.path.exists(CONFIG_FILE):
@@ -129,16 +358,55 @@ def change_output_directory():
     config = load_config()
     current_dir = config.get('output_directory', 'current directory')
     
-    print(f"\n📁 Current output directory: {current_dir}")
-    print("\nWould you like to change it?")
+    print(f"\n📁 CURRENT OUTPUT DIRECTORY SETTINGS")
+    print("=" * 50)
+    print(f"Base output directory: {current_dir}")
     
-    if input("Change output directory? (y/n): ").lower() in ['y', 'yes']:
+    # Look for existing project directories
+    project_dirs = []
+    search_base = current_dir if current_dir != "." else "."
+    
+    if os.path.exists(search_base):
+        try:
+            for item in os.listdir(search_base):
+                item_path = os.path.join(search_base, item) if search_base != "." else item
+                if os.path.isdir(item_path) and item.endswith('_precipgen'):
+                    project_dirs.append(item)
+        except PermissionError:
+            pass
+    
+    if project_dirs:
+        print(f"\n🗂️  Found project directories in {search_base}:")
+        for proj_dir in sorted(project_dirs):
+            project_name = proj_dir.replace('_precipgen', '')
+            print(f"   📂 {proj_dir} (project: {project_name})")
+    else:
+        print(f"\n💡 No project directories found yet.")
+        print("   Create projects using option 1 (Find weather stations near me)")
+    
+    print(f"\nℹ️  HOW OUTPUT DIRECTORIES WORK:")
+    print(f"• Base directory: Where PrecipGen saves general files")
+    print(f"• Project directories: Created automatically when you search for stations")
+    print(f"• Project format: {'{project_name}_precipgen'}")
+    print(f"• All project files go in their respective project directories")
+    
+    print(f"\nWould you like to change the base output directory?")
+    print(f"(This affects where new project directories will be created)")
+    
+    if input("Change base output directory? (y/n): ").lower() in ['y', 'yes']:
         new_dir = setup_output_directory()
         config['output_directory'] = new_dir
         config['last_changed'] = datetime.now().isoformat()
         save_config(config)
         
-        print(f"\n✅ Output directory changed to: {new_dir}")
+        print(f"\n✅ Base output directory changed to: {new_dir}")
+        
+        # Inform about existing projects
+        if project_dirs:
+            print(f"\n💡 NOTE ABOUT EXISTING PROJECTS:")
+            print(f"Your existing project directories are still in: {search_base}")
+            print(f"New projects will be created in: {new_dir}")
+            print(f"You may want to move existing projects to the new location.")
     
     input("Press Enter to continue...")
 
@@ -197,11 +465,9 @@ def print_menu():
     print("6. Calculate basic parameters")
     print("7. Calculate random walk parameters")
     print("8. Advanced wave analysis")
-    print("9. Complete workflow (find → download → fill → analyze)")
-    print("10. Help - Understanding the process")
-    print("11. ⚙️  Change output directory")
-    print("12. 📋 Show current configuration")
-    print("13. Exit")
+    print("9. Help - Understanding the process")
+    print("10. 📋 Show current configuration")
+    print("11. Exit")
     print()
     print("💡 NEW: Option 7 calculates volatility & reversion rates for")
     print("   mean-reverting random walk processes (recommended approach)!")
@@ -221,12 +487,30 @@ def select_time_series_file(operation_name):
         print(f"\n📁 Found station data files for {operation_name}:")
         for i, file in enumerate(data_files, 1):
             basename = os.path.basename(file)
-            if '_filled.csv' in basename:
-                label = f"{basename} (✅ FILLED DATA - RECOMMENDED)"
-            elif '_data.csv' in basename:
-                label = f"{basename} (📥 ORIGINAL DATA)"
+            
+            # Determine project context
+            file_dir = os.path.dirname(file)
+            dir_name = os.path.basename(file_dir)
+            
+            # Create descriptive label with project info
+            if dir_name.endswith('_precipgen'):
+                # File is in a project directory
+                project_name = dir_name.replace('_precipgen', '')
+                if '_filled.csv' in basename:
+                    label = f"{basename} (✅ FILLED DATA from {project_name} project)"
+                elif '_data.csv' in basename:
+                    label = f"{basename} (📥 ORIGINAL DATA from {project_name} project)"
+                else:
+                    label = f"{basename} (from {project_name} project)"
             else:
-                label = basename
+                # File is not in a project directory
+                if '_filled.csv' in basename:
+                    label = f"{basename} (✅ FILLED DATA)"
+                elif '_data.csv' in basename:
+                    label = f"{basename} (📥 ORIGINAL DATA)"
+                else:
+                    label = basename
+            
             print(f"   {i}. {label}")
         print()
         
@@ -281,7 +565,7 @@ def run_gap_analysis(data_file):
     output_file = input("Save results to file? (Enter filename or press Enter to skip): ").strip()
     
     if output_file:
-        output_path = get_output_path(output_file)
+        output_path = get_project_aware_output_path(data_file, output_file)
         cmd = f'"{sys.executable}" cli.py gap-analysis "{data_file}" -o "{output_path}"'
     else:
         cmd = f'"{sys.executable}" cli.py gap-analysis "{data_file}"'
@@ -306,7 +590,7 @@ def run_param_calculation(data_file):
     if not output_file:
         output_file = "parameters.csv"
     
-    output_path = get_output_path(output_file)
+    output_path = get_project_aware_output_path(data_file, output_file)
     cmd = f'"{sys.executable}" cli.py params "{data_file}" -o "{output_path}"'
     
     print(f"Running: {cmd}")
@@ -367,17 +651,17 @@ def run_random_walk_analysis(data_file):
         print("Running random walk parameter analysis...")
         analyzer = analyze_random_walk_parameters(ts, window_size=int(window_years), seasonal_analysis=seasonal_analysis)
         
-        # Save results
-        json_file = f"{output_name}.json"
-        csv_file = f"{output_name}.csv"
+        # Save results with project-aware output paths
+        json_file = get_project_aware_output_path(data_file, f"{output_name}.json")
+        csv_file = get_project_aware_output_path(data_file, f"{output_name}.csv")
         
         analyzer.export_results(json_file, format='json')
         analyzer.export_results(csv_file, format='csv')
         
         # Create plots if requested
         if create_plots == 'y':
-            evolution_plot = f"{output_name}_evolution.png"
-            correlation_plot = f"{output_name}_correlations.png"
+            evolution_plot = get_project_aware_output_path(data_file, f"{output_name}_evolution.png")
+            correlation_plot = get_project_aware_output_path(data_file, f"{output_name}_correlations.png")
             
             print("Creating annual analysis plots...")
             analyzer.plot_parameter_evolution(evolution_plot)
@@ -388,13 +672,13 @@ def run_random_walk_analysis(data_file):
             # Create seasonal plots if seasonal analysis was performed
             if seasonal_analysis and analyzer.seasonal_sequences:
                 print("Creating seasonal analysis plots...")
-                seasonal_plot = f"{output_name}_seasonal_evolution.png"
+                seasonal_plot = get_project_aware_output_path(data_file, f"{output_name}_seasonal_evolution.png")
                 analyzer.plot_seasonal_parameter_evolution(seasonal_plot)
                 plot_files.append(seasonal_plot)
                 
                 # Export seasonal results
-                seasonal_json = f"{output_name}_seasonal.json"
-                seasonal_csv = f"{output_name}_seasonal.csv"
+                seasonal_json = get_project_aware_output_path(data_file, f"{output_name}_seasonal.json")
+                seasonal_csv = get_project_aware_output_path(data_file, f"{output_name}_seasonal.csv")
                 analyzer.export_seasonal_results(seasonal_json, format='json')
                 analyzer.export_seasonal_results(seasonal_csv, format='csv')
                 
@@ -545,7 +829,7 @@ def run_random_walk_analysis(data_file):
             
             # Export trend slopes to file for PrecipGen integration
             if trend_slopes:
-                trend_slopes_file = f"{output_name}_trend_slopes.json"
+                trend_slopes_file = get_project_aware_output_path(data_file, f"{output_name}_trend_slopes.json")
                 try:
                     import json
                     with open(trend_slopes_file, 'w') as f:
@@ -700,14 +984,79 @@ def find_stations():
     print("="*50)
     print()
     print("Choose how to search for stations:")
-    print("1. Search by coordinates (latitude/longitude)")
-    print("2. Search by climate zone")
-    print("3. Get info about a specific station")
+    print("1. Search by city name")
+    print("2. Search by coordinates (latitude/longitude)")
+    print("3. Search by climate zone")
+    print("4. Get info about a specific station")
     print()
     
-    choice = input("Enter your choice (1-3): ").strip()
+    choice = input("Enter your choice (1-4): ").strip()
     
     if choice == '1':
+        # Search by city name
+        print("\nSearching by city name...")
+        print("Enter a city name to search for weather stations nearby.")
+        print("Examples: 'denver', 'boulder', 'seattle', 'new york'")
+        print()
+        
+        city_input = input("Enter city name: ").strip()
+        if not city_input:
+            print("❌ Please enter a city name.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Search for matching cities
+        matches = search_cities(city_input)
+        
+        if not matches:
+            print(f"❌ No cities found matching '{city_input}'.")
+            print("Try a different spelling or a major city name.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Display matching cities
+        print(f"\nFound {len(matches)} matching cities:")
+        print()
+        for i, (city_key, lat, lon, display_name) in enumerate(matches[:10], 1):  # Show max 10 matches
+            print(f"{i}. {display_name} ({lat:.4f}, {lon:.4f})")
+        
+        if len(matches) > 10:
+            print(f"... and {len(matches)-10} more matches (showing first 10)")
+        
+        print()
+        try:
+            selection = int(input("Select a city (enter number): ").strip()) - 1
+            if selection < 0 or selection >= min(len(matches), 10):
+                print("❌ Invalid selection.")
+                input("\nPress Enter to continue...")
+                return
+        except ValueError:
+            print("❌ Please enter a number.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Get selected city coordinates
+        selected_city = matches[selection]
+        city_key, lat, lon, display_name = selected_city
+        
+        print(f"\n✅ Selected: {display_name}")
+        print(f"Coordinates: {lat:.4f}, {lon:.4f}")
+        
+        # Ask for search radius
+        radius = input("Search radius in km (default=50): ").strip()
+        if not radius:
+            radius = "50"
+        
+        # Ask for project name
+        default_project = city_key.replace(" ", "_").replace("-", "_")
+        project_name = input(f"Project name (default='{default_project}'): ").strip().lower()
+        if not project_name:
+            project_name = default_project
+        
+        # Create project directory and run search
+        _run_station_search_with_coords(lat, lon, radius, project_name, display_name)
+    
+    elif choice == '2':
         # Search by coordinates
         print("\nSearching by coordinates...")
         print("(You can find your coordinates from Google Maps or GPS)")
@@ -719,34 +1068,19 @@ def find_stations():
             if not radius:
                 radius = "50"
             
-            # Suggest a location-based filename
-            location_hint = input("Location name for filename (e.g., 'boulder', 'denver'): ").strip().lower()
-            if location_hint:
-                default_output = f"{location_hint}_stations.csv"
-            else:
-                default_output = "found_stations.csv"
+            # Ask for project name
+            project_name = input("Project name (e.g., 'my_site', 'project1'): ").strip().lower()
+            if not project_name:
+                project_name = "my_project"
             
-            output_file = input(f"Save results to file (default={default_output}): ").strip()
-            if not output_file:
-                output_file = default_output
-            
-            output_path = get_output_path(output_file)
-            cmd = f'python cli.py find-stations-radius {lat} {lon} {radius} --min-years 20 -o "{output_path}"'
-            print(f"\nRunning: {cmd}")
-            result = subprocess.run(cmd, shell=True)
-            
-            if result.returncode == 0:
-                print(f"\n✅ Station search completed!")
-                print(f"Results saved to: {output_path}")
-                print(f"Open {output_path} to see the available stations.")
-                print(f"\n💡 TIP: Use option 2 (Download data) next to select from this list!")
-            else:
-                print("\n❌ Station search failed.")
+            # Run search
+            _run_station_search_with_coords(lat, lon, radius, project_name, f"({lat:.4f}, {lon:.4f})")
                 
         except ValueError:
             print("❌ Invalid coordinates. Please enter numbers only.")
+            input("\nPress Enter to continue...")
     
-    elif choice == '2':
+    elif choice == '3':
         # Search by climate zone
         print("\nAvailable climate zones:")
         print("- temperate: Eastern USA, Western Europe, Eastern China")
@@ -756,23 +1090,52 @@ def find_stations():
         zone = input("\nEnter climate zone (temperate/arid/tropical): ").strip().lower()
         if zone not in ['temperate', 'arid', 'tropical']:
             print("❌ Invalid climate zone.")
+            input("\nPress Enter to continue...")
             return
         
-        output_file = input("Save results to file (default=climate_stations.csv): ").strip()
-        if not output_file:
-            output_file = "climate_stations.csv"
+        # Ask for project name
+        project_name = input(f"Project name (default='{zone}_climate'): ").strip().lower()
+        if not project_name:
+            project_name = f"{zone}_climate"
         
-        cmd = f'python cli.py find-stations {zone} --download -o "{output_file}"'
+        # Create project directory
+        project_dir = f"{project_name}_precipgen"
+        try:
+            base_output_dir = get_output_directory()
+            if base_output_dir == ".":
+                full_project_path = project_dir
+            else:
+                full_project_path = os.path.join(base_output_dir, project_dir)
+            
+            os.makedirs(full_project_path, exist_ok=True)
+            print(f"✅ Created project directory: {full_project_path}")
+        except Exception as e:
+            print(f"⚠️  Could not create project directory: {e}")
+            print("Using default output directory instead.")
+            full_project_path = get_output_directory()
+        
+        # Generate station file name within project directory
+        station_filename = f"{project_name}_stations.csv"
+        output_path = os.path.join(full_project_path, station_filename)
+        
+        print(f"\nProject: {project_name}")
+        print(f"Directory: {full_project_path}")
+        print(f"Station file: {station_filename}")
+        
+        cmd = f'python cli.py find-stations {zone} --download -o "{output_path}"'
         print(f"\nRunning: {cmd}")
         result = subprocess.run(cmd, shell=True)
         
         if result.returncode == 0:
             print(f"\n✅ Climate zone search completed!")
-            print(f"Results saved to: {output_file}")
+            print(f"Results saved to: {output_path}")
+            print(f"Project directory: {full_project_path}")
+            print(f"\n💡 TIP: Use option 2 (Download data) next to select from this list!")
+            print(f"💡 All your {project_name} analysis files will be saved in: {full_project_path}")
         else:
             print("\n❌ Climate zone search failed.")
     
-    elif choice == '3':
+    elif choice == '4':
         # Get station info
         station_id = input("\nEnter station ID (e.g., USW00023066): ").strip()
         
@@ -787,6 +1150,48 @@ def find_stations():
         print("❌ Invalid choice.")
     
     input("\nPress Enter to continue...")
+
+def _run_station_search_with_coords(lat, lon, radius, project_name, location_desc):
+    """Helper function to run station search with coordinates."""
+    # Create project directory
+    project_dir = f"{project_name}_precipgen"
+    try:
+        # Get base output directory (user's configured directory)
+        base_output_dir = get_output_directory()
+        if base_output_dir == ".":
+            full_project_path = project_dir
+        else:
+            full_project_path = os.path.join(base_output_dir, project_dir)
+        
+        os.makedirs(full_project_path, exist_ok=True)
+        print(f"✅ Created project directory: {full_project_path}")
+    except Exception as e:
+        print(f"⚠️  Could not create project directory: {e}")
+        print("Using default output directory instead.")
+        full_project_path = get_output_directory()
+    
+    # Generate station file name within project directory
+    station_filename = f"{project_name}_stations.csv"
+    output_path = os.path.join(full_project_path, station_filename)
+    
+    print(f"\nProject: {project_name}")
+    print(f"Location: {location_desc}")
+    print(f"Search radius: {radius} km")
+    print(f"Directory: {full_project_path}")
+    print(f"Station file: {station_filename}")
+    
+    cmd = f'python cli.py find-stations-radius {lat} {lon} {radius} --min-years 20 -o "{output_path}"'
+    print(f"\nRunning: {cmd}")
+    result = subprocess.run(cmd, shell=True)
+    
+    if result.returncode == 0:
+        print(f"\n✅ Station search completed!")
+        print(f"Results saved to: {output_path}")
+        print(f"Project directory: {full_project_path}")
+        print(f"\n💡 TIP: Use option 2 (Download data) next to select from this list!")
+        print(f"💡 All your {project_name} analysis files will be saved in: {full_project_path}")
+    else:
+        print("\n❌ Station search failed.")
 
 def find_station_files():
     """Find CSV files that might contain station lists."""
@@ -826,6 +1231,25 @@ def find_station_files():
                         station_files.append(file_path)
         except PermissionError:
             # If we can't read the directory, skip it
+            pass
+    
+    # NEW: Check inside project directories for station files
+    # Project directories have the pattern {project_name}_precipgen
+    if os.path.exists(search_dir):
+        try:
+            for item in os.listdir(search_dir):
+                item_path = os.path.join(search_dir, item) if search_dir != "." else item
+                if os.path.isdir(item_path) and item.endswith('_precipgen'):
+                    # This is a project directory, look for station files inside it
+                    try:
+                        for file in os.listdir(item_path):
+                            if file.lower().endswith('.csv') and 'station' in file.lower():
+                                station_file_path = os.path.join(item_path, file)
+                                if station_file_path not in station_files:
+                                    station_files.append(station_file_path)
+                    except PermissionError:
+                        pass
+        except PermissionError:
             pass
     
     # Also check current directory for any station files (fallback)
@@ -904,22 +1328,37 @@ def download_station_data():
     # Look for station files from step 1
     station_files = find_station_files()
     station_id = None
+    selected_station_file = None  # Track which station file was selected
     
-    if station_files:
+    # Filter out empty files and add helpful descriptions
+    valid_station_files = []
+    for file in station_files:
+        if os.path.exists(file) and os.path.getsize(file) > 0:
+            valid_station_files.append(file)
+    
+    if valid_station_files:
         print("📋 Found station list files from previous searches:")
-        for i, file in enumerate(station_files, 1):
-            print(f"   {i}. {file}")
+        for i, file in enumerate(valid_station_files, 1):
+            # Show a more descriptive name
+            if file.endswith('_precipgen/boulder_stations.csv') or file.endswith('_precipgen\\boulder_stations.csv'):
+                project_name = os.path.basename(os.path.dirname(file)).replace('_precipgen', '')
+                print(f"   {i}. {os.path.basename(file)} (from {project_name} project)")
+            elif os.path.dirname(file) and os.path.basename(os.path.dirname(file)).endswith('_precipgen'):
+                project_name = os.path.basename(os.path.dirname(file)).replace('_precipgen', '')
+                print(f"   {i}. {os.path.basename(file)} (from {project_name} project)")
+            else:
+                print(f"   {i}. {file}")
         print()
         
         choice = input("Select a station from a file (enter number) or press Enter to enter station ID manually: ").strip()
         
         if choice and choice.isdigit():
             file_idx = int(choice) - 1
-            if 0 <= file_idx < len(station_files):
-                selected_file = station_files[file_idx]
-                print(f"\nLoading stations from: {selected_file}")
+            if 0 <= file_idx < len(valid_station_files):
+                selected_station_file = valid_station_files[file_idx]
+                print(f"\nLoading stations from: {selected_station_file}")
                 
-                stations = parse_station_file(selected_file)
+                stations = parse_station_file(selected_station_file)
                 if stations:
                     print("\n📍 Available stations:")
                     print("-" * 80)
@@ -964,8 +1403,18 @@ def download_station_data():
     if not output_file:
         output_file = default_name
     
-    # Use configured output directory
-    output_path = get_output_path(output_file)
+    # Use project-aware output directory logic
+    if selected_station_file:
+        # Station was selected from a file, save in same project directory
+        output_path = get_project_aware_output_path(selected_station_file, output_file)
+        # Show project context
+        project_dir = os.path.dirname(output_path)
+        project_name = os.path.basename(project_dir).replace('_precipgen', '') if project_dir.endswith('_precipgen') else None
+        if project_name:
+            print(f"\n📁 Saving to {project_name} project directory")
+    else:
+        # Manual station ID entry, use configured output directory
+        output_path = get_output_path(output_file)
     
     # Download the data
     cmd = f'python cli.py download-station {station_id} -o "{output_path}" --force'
@@ -978,10 +1427,7 @@ def download_station_data():
         print(f"Data saved to: {output_path}")
         print(f"You can now analyze this data with the other tools.")
         
-        # Ask if user wants to run gap filling next
-        next_step = input("\n🔄 Would you like to fill missing data in this file? (y/n): ").lower()
-        if next_step in ['y', 'yes']:
-            run_data_filling(output_path)
+
     else:
         print("\n❌ Data download failed.")
     
@@ -1192,6 +1638,24 @@ def check_installation():
         print(f"❌ Installation check failed: {e}")
         return False
 
+def get_project_aware_output_path(input_file, output_filename):
+    """
+    Get output path that respects project directory structure.
+    If input file is in a project directory, save output there too.
+    Otherwise, use the configured output directory.
+    """
+    input_dir = os.path.dirname(os.path.abspath(input_file))
+    input_dir_name = os.path.basename(input_dir)
+    
+    # Check if input file is in a project directory
+    if input_dir_name.endswith('_precipgen'):
+        # Input is in a project directory, save output there too
+        output_path = os.path.join(input_dir, output_filename)
+        return output_path
+    else:
+        # Input is not in a project directory, use configured output directory
+        return get_output_path(output_filename)
+
 def run_data_filling(data_file):
     """Run data filling with user-friendly options."""
     print(f"\nFilling missing data in: {os.path.basename(data_file)}")
@@ -1238,8 +1702,16 @@ def run_data_filling(data_file):
     if not output_file:
         output_file = default_output
     
-    # Use configured output directory
-    output_path = get_output_path(output_file)
+    # Use project-aware output directory (keeps files together in project directories)
+    output_path = get_project_aware_output_path(data_file, output_file)
+    
+    # Show where the file will be saved
+    input_dir = os.path.dirname(os.path.abspath(data_file))
+    output_dir = os.path.dirname(os.path.abspath(output_path))
+    if input_dir == output_dir:
+        print(f"💡 Saving filled data in same directory as input: {output_dir}")
+    else:
+        print(f"💡 Saving filled data to: {output_path}")
     
     # Advanced options
     print("\nAdvanced options (press Enter for defaults):")
@@ -1442,6 +1914,25 @@ def find_station_data_files():
                     data_files.append(file_path)
         except PermissionError:
             pass
+    
+    # Check all project directories (project-aware search)
+    search_base = "." if output_dir == "." else output_dir
+    try:
+        for item in os.listdir(search_base):
+            item_path = os.path.join(search_base, item) if search_base != "." else item
+            
+            # Check if this is a project directory
+            if os.path.isdir(item_path) and item.endswith('_precipgen'):
+                try:
+                    for file in os.listdir(item_path):
+                        if file.lower().endswith('.csv') and ('_data.csv' in file.lower() or '_filled.csv' in file.lower()):
+                            file_path = os.path.join(item_path, file)
+                            if file_path not in data_files:
+                                data_files.append(file_path)
+                except PermissionError:
+                    pass
+    except PermissionError:
+        pass
     
     # Also check current directory as fallback
     try:
@@ -1698,12 +2189,30 @@ def show_station_data_info():
     print("📁 Found downloaded station data files:")
     for i, file in enumerate(data_files, 1):
         basename = os.path.basename(file)
-        if '_filled.csv' in basename:
-            label = f"{basename} (✅ FILLED DATA)"
-        elif '_data.csv' in basename:
-            label = f"{basename} (� ORIGINAL DATA)"
+        
+        # Determine project context
+        file_dir = os.path.dirname(file)
+        dir_name = os.path.basename(file_dir)
+        
+        # Create descriptive label with project info
+        if dir_name.endswith('_precipgen'):
+            # File is in a project directory
+            project_name = dir_name.replace('_precipgen', '')
+            if '_filled.csv' in basename:
+                label = f"{basename} (✅ FILLED DATA from {project_name} project)"
+            elif '_data.csv' in basename:
+                label = f"{basename} (📥 ORIGINAL DATA from {project_name} project)"
+            else:
+                label = f"{basename} (from {project_name} project)"
         else:
-            label = basename
+            # File is not in a project directory
+            if '_filled.csv' in basename:
+                label = f"{basename} (✅ FILLED DATA)"
+            elif '_data.csv' in basename:
+                label = f"{basename} (📥 ORIGINAL DATA)"
+            else:
+                label = basename
+        
         print(f"   {i}. {label}")
     print()
     
@@ -1937,7 +2446,7 @@ def main():
     while True:
         print_menu()
         
-        choice = input("Enter your choice (1-12): ").strip()
+        choice = input("Enter your choice (1-11): ").strip()
         
         if choice == '1':
             find_stations()
@@ -1974,25 +2483,17 @@ def main():
                 run_wave_analysis(data_file)
             
         elif choice == '9':
-            data_file = select_time_series_file("complete workflow")
-            if data_file:
-                run_complete_workflow(data_file)
-            
-        elif choice == '10':
             show_help()
             
-        elif choice == '11':
-            change_output_directory()
-            
-        elif choice == '12':
+        elif choice == '10':
             show_current_config()
             
-        elif choice == '13' or choice.lower() in ['exit', 'quit', 'q']:
+        elif choice == '11' or choice.lower() in ['exit', 'quit', 'q']:
             print("Goodbye!")
             break
             
         else:
-            print(f"Invalid choice '{choice}'. Please enter 1-13.")
+            print(f"Invalid choice '{choice}'. Please enter 1-11.")
             input("Press Enter to continue...")
 
 if __name__ == "__main__":

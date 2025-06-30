@@ -4,6 +4,14 @@ from pgpar import calculate_params, calculate_window_params
 import unittest
 import os
 
+# Import project-aware output functions
+try:
+    from easy_start import get_output_path
+except ImportError:
+    # Fallback for standalone execution
+    def get_output_path(filename):
+        return filename
+
 def run_all_tests():
     """Run all unit tests in the tests directory."""
     loader = unittest.TestLoader()
@@ -49,8 +57,9 @@ def main():
     print(stats)
 
     # Save the parameters to a CSV file
-    params.to_csv('params_output.csv', index=False)
-    print("Parameters saved to params_output.csv")
+    output_path = get_output_path('params_output.csv')
+    params.to_csv(output_path, index=False)
+    print(f"Parameters saved to {output_path}")
 
     # Run all tests from the tests directory
     print("\nRunning tests...")

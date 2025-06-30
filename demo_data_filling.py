@@ -18,6 +18,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data_filler import PrecipitationDataFiller
 import warnings
+
+# Import project-aware output functions
+try:
+    from easy_start import get_output_path
+except ImportError:
+    # Fallback for standalone execution
+    def get_output_path(filename):
+        return filename
 warnings.filterwarnings('ignore')
 
 def create_demo_data_with_gaps():
@@ -145,8 +153,9 @@ def demonstrate_filling_methods():
     complete_data, data_with_gaps = create_demo_data_with_gaps()
     
     # Save the gapped data for reference
-    data_with_gaps.to_csv('demo_data_with_gaps.csv', index=False)
-    print(f"\nGapped data saved to: demo_data_with_gaps.csv")
+    output_path = get_output_path('demo_data_with_gaps.csv')
+    data_with_gaps.to_csv(output_path, index=False)
+    print(f"\nGapped data saved to: {output_path}")
     
     # Initialize the data filler
     print("\nInitializing PrecipitationDataFiller...")

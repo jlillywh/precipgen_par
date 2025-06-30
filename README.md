@@ -1,54 +1,190 @@
-# PrecipGen Parameter Generator
+# PrecipGen PAR - Precipitation Parameter Analysis
 
-## 1. Introduction
-The `PrecipGenPAR` program produces the input parameters needed to run a stochastic precipitation simulator called "PrecipGen." PrecipGen is a first-order, 2-state Markov chain-gamma model that simulates daily precipitation for a long-term simulation at a single point on the earth. A Markov process models the change between 2 states (wet vs dry) randomly over time and the probability of a state change depends on the previous state. Precipitation rate is modeled by sampling from a gamma probability distribution. Leveraging the foundational work of Dee Allen Wright and the WGEN model from 1983, implemented in FORTRAN, this program inherits a legacy of reliability in precipitation simulation. This implementation has the added option to incorporate long-term cyclic behavior, based correlations found in the historical record.
+**An easy-to-use tool for analyzing historical precipitation data and generating parameters for stochastic precipitation modeling.**
 
-## 2. Design
-The system consists of two main components: the Parameter Calculator "PrecipGenPAR" and the Precipitation Simulator "PrecipGen".
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-### 2.1 PrecipGenPAR
-Reads long-term historical record and calculates four parameters for each month. It also calculates these parameters based on identified dry and deluge periods (long-term capability is phase 2).
+## 🚀 Quick Start
 
-#### 2.2 PrecipGen
-This component runs a simulation using the precip generator, a Markov chain model, with the parameters provided by the Parameter Calculator. In phase 2, incorporate long-term logic.
+**For beginners - Use the Interactive Menu:**
+```bash
+python easy_start.py
+```
 
-## 3. Getting Started
-The workflow for using the `PrecipGen` project involves several steps:
+**For advanced users - Use the Command Line:**
+```bash
+# Find stations near Denver, CO
+python cli.py find-stations-radius 39.7392 -104.9903 50 -o denver_stations.csv
 
-### 3.1 Establish the Time Series (Not Included in Design)
-The first step is to establish a time series of daily precipitation totals over a long-term history. This data can usually be downloaded from the NOAA NCEI webpage. Ensure that the data is clean and ready to be used, and follows our requirements for the time series. Assume this is done outside of PrecipGen!
+# Download data and analyze
+python cli.py download-station USW00023066 -o denver_data.csv
+python cli.py fill-data denver_data.csv -o denver_filled.csv
+python cli.py params denver_filled.csv -o denver_parameters.csv
+```
 
-### 3.2 Fill Missing Data (RECOMMENDED)
-Real-world precipitation data often contains missing values. Use the professional-grade data filling module to handle gaps:
+## ✨ Features
 
-- **Linear interpolation**: For 1-2 day gaps
-- **Climatological normals**: For 3-7 day gaps using seasonal averages from other years
-- **Analogous year method**: For 8+ day gaps using meteorologically similar years
+- **🏙️ Smart City Search** - Just type "Denver", "Seattle", "New York" - no coordinates needed
+- **📁 Project Organization** - Automatic folder structure keeps your work organized
+- **🔧 Professional Data Filling** - Meteorological-grade gap filling using multiple methods
+- **📊 Advanced Analysis** - Random walk parameters, climate trends, wave analysis
+- **🎯 Beginner-Friendly** - Interactive menu guides you through the entire process
+- **⚡ Automated Workflow** - Download data directly from NOAA, no manual website navigation
 
-The data filler follows best practices used by professional hydrologists and meteorologists, including statistical validation and quality control.
+## 📋 What This Tool Does
 
-### 3.3 Run PrecipGenPAR
-Once you have the time series (preferably with missing data filled), you can run the preprocessor, `PrecipGenPAR`. This requires a configuration file that points to a CSV file containing the daily precipitation data. When you run `PrecipGenPAR`, you need to load the time series. The JSON file should have a reference to the path to this file.
+PrecipGen PAR analyzes historical precipitation data to generate parameters for stochastic precipitation simulation. It's based on the proven WGEN model (1983) and includes modern enhancements:
 
-### 3.4 Generate Input Parameters
-After initializing a new simulation, use a function in `PrecipGenPAR` to generate the input parameters. These parameters will be used as input to `PrecipGen`.
+1. **Find Weather Stations** - Search by city name, coordinates, or climate zone
+2. **Download Historical Data** - Automatic download from NOAA databases
+3. **Fill Missing Data** - Professional-grade gap filling using meteorological methods
+4. **Calculate Parameters** - Generate PWW, PWD, alpha, beta parameters for each month
+5. **Advanced Analysis** - Volatility, reversion rates, climate trends, and future projections
 
-### 3.5 Execute a Simulation
-To execute a simulation, you need the start and end dates, which are defined in the JSON file. The simulation starts on the start date and walks forward in time one day at a time. During each update, `PrecipGen` calculates a new output, which is the rainfall for the day. This continues until the end date is reached.
+The output parameters can be used with precipitation simulation models like PrecipGen to generate synthetic precipitation time series for long-term studies.
 
-### 3.6 Results
-When the simulation is complete, the results are stored in a text file as a time series of daily precipitation over the long term. Another text file contains annual and monthly totals and statistics.
-
-## 4. Usage
-
-### 4.1 Installation
+## 📦 Installation
 
 1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/precipgen_par.git
+   cd precipgen_par
+   ```
 
-    ```sh
-    git clone https://github.com/yourusername/PrecipGenPAR.git
-    cd PrecipGenPAR
-    ```
+2. **Install Python 3.9+ (64-bit recommended):**
+   - Download from [python.org](https://python.org)
+   - Make sure to check "Add Python to PATH" during installation
+
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Test the installation:**
+   ```bash
+   python easy_start.py
+   ```
+
+## 🎯 Usage Examples
+
+### Example 1: Complete Beginner Workflow
+```bash
+# Run the interactive menu
+python easy_start.py
+
+# Follow the prompts:
+# 1. Choose "Find weather stations near me"
+# 2. Choose "Search by city name" 
+# 3. Type "denver"
+# 4. Select "Denver, CO" from the list
+# 5. Use defaults and let it find stations
+# 6. Download data from the best station
+# 7. Analyze with recommended settings
+```
+
+### Example 2: Advanced Command Line
+```bash
+# Find stations within 100km of Seattle
+python cli.py find-stations-radius 47.6062 -122.3321 100 \
+  --min-years 30 -o seattle_stations.csv
+
+# Download data from the best station
+python cli.py download-station USW00024233 -o seattle_data.csv
+
+# Fill missing data (recommended)
+python cli.py fill-data seattle_data.csv -o seattle_filled.csv
+
+# Calculate basic parameters
+python cli.py params seattle_filled.csv -o seattle_parameters.csv
+
+# Advanced random walk analysis
+python cli.py random-walk seattle_filled.csv \
+  --seasonal-analysis --create-plots -o seattle_random_walk
+```
+
+### Example 3: Batch Analysis
+```bash
+# Find stations in multiple climate zones
+python cli.py find-stations temperate -o temperate_stations.csv
+python cli.py find-stations arid -o arid_stations.csv
+
+# Analyze data quality across regions  
+python cli.py batch-gap-analysis temperate_stations.csv -o quality_report.csv
+```
+
+## 📊 Output Files
+
+PrecipGen PAR creates organized project folders with descriptive file names:
+
+```
+your_analysis_folder/
+├── denver_precipgen/
+│   ├── denver_stations.csv          # Station search results
+│   ├── USW00023066_data.csv         # Downloaded raw data
+│   ├── USW00023066_filled.csv       # Gap-filled data
+│   ├── denver_parameters.csv        # Monthly PWW, PWD, alpha, beta
+│   ├── denver_random_walk.json      # Volatility & reversion rates
+│   ├── denver_gaps_analysis.csv     # Data quality assessment
+│   └── denver_trend_analysis.png    # Visualization plots
+└── seattle_precipgen/
+    └── [similar files for Seattle]
+```
+
+## 🔬 Scientific Background
+
+This tool implements the proven WGEN precipitation model (Richardson & Wright, 1984) with modern enhancements:
+
+- **Markov Chain Model**: Two-state (wet/dry) first-order Markov process
+- **Gamma Distribution**: Models precipitation amounts on wet days
+- **Monthly Parameters**: Accounts for seasonal variation
+- **Random Walk Extensions**: Captures long-term variability and climate trends
+- **Professional Data QA**: Meteorological-grade gap filling and quality control
+
+**Key Parameters Generated:**
+- **PWW**: Probability of wet day following wet day
+- **PWD**: Probability of wet day following dry day  
+- **alpha, beta**: Gamma distribution shape and scale parameters
+- **Volatility**: Parameter variability over time
+- **Reversion rates**: Mean-reverting behavior coefficients
+
+## 📚 Documentation
+
+- **[Getting Started Guide](GETTING_STARTED.md)** - Complete setup and usage instructions
+- **[Quick Reference](QUICK_REFERENCE.md)** - Command reference and examples
+- **[CLI README](CLI_README.md)** - Command-line interface documentation
+
+## 🆕 Recent Updates
+
+- **Smart City Search**: Search for weather stations by city name (200+ US cities)
+- **Project Organization**: Automatic folder structure keeps work organized by location
+- **Streamlined Interface**: Beginner-friendly menu system with guided workflow
+- **Advanced Analysis**: Random walk parameters, climate trend detection, seasonal analysis
+- **Professional Data Filling**: Meteorological-grade gap filling algorithms
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit issues and enhancement requests.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 References
+
+- Richardson, C.W. & Wright, D.A. (1984). WGEN: A model for generating daily weather variables. USDA Agricultural Research Service.
+- Based on the foundational FORTRAN implementation from 1983
+- Modern Python implementation with enhanced features for climate analysis
+
+## 🆘 Support
+
+- Check the [Getting Started Guide](GETTING_STARTED.md) for detailed instructions
+- Look at [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for common tasks
+- Create an issue on GitHub for bugs or feature requests
+
+---
+
+**Perfect for:** Climate researchers, hydrologists, environmental consultants, students, and anyone needing reliable precipitation parameters for stochastic modeling.
 
 2. **Create a virtual environment:**
 

@@ -3,7 +3,7 @@ import numpy as np
 from scipy.stats import gamma, norm
 from pgpar import calculate_params  # Importing calculate_params from pg_par
 
-def calculate_ext_params(precip_ts, window_years=3):
+def calculate_ext_params(precip_ts, window_years=3, output_path=None):
     """
     Calculate gamma distribution parameters for pww, pwd, alpha, and beta 
     over time-shifted windows in the precipitation time series.
@@ -13,6 +13,8 @@ def calculate_ext_params(precip_ts, window_years=3):
         Historical daily time series with 'DATE' as index and 'PRCP' as column.
     window_years : int, optional
         Number of years per segment for parameter calculation, default is 3.
+    output_path : str, optional
+        Base path for output files. If provided, saves parameter samples to CSV files.
 
     Returns:
     shape_table, scale_table : pd.DataFrame
@@ -46,9 +48,17 @@ def calculate_ext_params(precip_ts, window_years=3):
     # Convert samples dictionary to DataFrame for easier CSV export
     samples_df = {param: pd.DataFrame(monthly_values) for param, monthly_values in samples.items()}
     
-    # Write each parameter's samples to a separate CSV file
-    for param, df in samples_df.items():
-        df.to_csv(f"{param}_samples.csv", index_label='Month')
+    # Write each parameter's samples to a separate CSV file if output path provided
+    if output_path:
+        from pathlib import Path
+        base_path = Path(output_path)
+        base_name = base_path.stem
+        base_dir = base_path.parent
+        
+        for param, df in samples_df.items():
+            output_file = base_dir / f"{base_name}_{param}_samples.csv"
+            df.to_csv(output_file, index_label='Month')
+    
     # Fit gamma distributions for each month and each parameter
     ext_params = fit_normal_distributions(samples)
     

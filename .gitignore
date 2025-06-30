@@ -64,6 +64,21 @@ filled_denver_filling_report.json
 filled_grand_junction_filling_report.json
 precipgen_config.json
 test_sean/
+
+# Project directories (user-specific analysis projects)
+*_precipgen/
+boise_precipgen/
+boulder_precipgen/
+my_site_precipgen/
+nyc_precipgen/
+seattle_precipgen/
+slc_precipgen/
+
+# Analysis output files (user-specific results)
+random_walk_analysis*.json
+*_filling_report.json
+test_seasonal_results.json
+
 # Wave analysis output directories
 wave_output/
 demo_output/
