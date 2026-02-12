@@ -788,5 +788,5 @@ def main():
     and calculating parameters for stochastic weather generation.
     """)
 
-if __name__ == "__main__":
-    main()
+# Run the app
+main()
