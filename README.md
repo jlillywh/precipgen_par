@@ -7,12 +7,21 @@ A tool for analyzing historical precipitation data and generating parameters for
 
 ## Quick Start
 
-Interactive menu:
+### 🌐 Web Interface (Recommended for Beginners)
+```bash
+pip install streamlit
+streamlit run streamlit_app.py
+```
+Or double-click `run_streamlit.bat` (Windows) / `run_streamlit.sh` (Mac/Linux)
+
+See [STREAMLIT_GUIDE.md](STREAMLIT_GUIDE.md) for detailed instructions.
+
+### 📋 Interactive Menu (CLI)
 ```bash
 python easy_start.py
 ```
 
-Command line interface:
+### ⌨️ Command Line Interface
 ```bash
 # Find stations near Denver, CO
 python cli.py find-stations-radius 39.7392 -104.9903 50 -o denver_stations.csv
@@ -25,12 +34,14 @@ python cli.py params denver_filled.csv -o denver_parameters.csv
 
 ## Features
 
-- Smart city search by name or coordinates
-- Automatic project organization
-- Professional data filling using meteorological methods
-- Advanced analysis: random walk parameters, climate trends, wave analysis
-- Interactive menu interface
-- Automated workflow with direct NOAA data download
+- 🌐 **Modern Web Interface** - User-friendly Streamlit GUI (no command line needed!)
+- 🏙️ Smart city search by name or coordinates
+- 📁 Automatic project organization
+- 🔧 Professional data filling using meteorological methods
+- 📊 Advanced analysis: random walk parameters, climate trends, wave analysis
+- 📋 Interactive menu interface for CLI users
+- 🌍 Automated workflow with direct NOAA data download
+- 📈 Built-in visualization and data preview
 
 ## What This Tool Does
 

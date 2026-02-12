@@ -57,6 +57,9 @@ ghcnd-inventory.txt
 *.docx
 *.gsm
 
+# Output data directory (keeps source code clean)
+precipgen_data/
+
 # User-specific files and directories to exclude
 90
 boulder_stations.csv
@@ -65,7 +68,7 @@ filled_grand_junction_filling_report.json
 precipgen_config.json
 test_sean/
 
-# Project directories (user-specific analysis projects)
+# Legacy project directories (now using precipgen_data/)
 *_precipgen/
 boise_precipgen/
 boulder_precipgen/

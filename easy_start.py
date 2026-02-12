@@ -1180,7 +1180,7 @@ def _run_station_search_with_coords(lat, lon, radius, project_name, location_des
     print(f"Directory: {full_project_path}")
     print(f"Station file: {station_filename}")
     
-    cmd = f'python cli.py find-stations-radius {lat} {lon} {radius} --min-years 20 -o "{output_path}"'
+    cmd = f'python cli.py find-stations-radius {lat} {lon} {radius} --min-years 20 --download -o "{output_path}"'
     print(f"\nRunning: {cmd}")
     result = subprocess.run(cmd, shell=True)
     
@@ -1467,7 +1467,7 @@ def run_complete_workflow():
         station_file = f"{location_hint}_workflow_stations.csv" if location_hint else "workflow_stations.csv"
         
         print(f"\nSearching for stations within {radius}km of ({lat}, {lon})...")
-        cmd1 = f'python cli.py find-stations-radius {lat} {lon} {radius} --min-years 25 -o "{station_file}"'
+        cmd1 = f'python cli.py find-stations-radius {lat} {lon} {radius} --min-years 25 --download -o "{station_file}"'
         print(f"Running: {cmd1}")
         result1 = subprocess.run(cmd1, shell=True)
         
