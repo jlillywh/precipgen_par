@@ -1,5 +1,5 @@
-from pandas import pd
-from numpy import np
+import pandas as pd
+import numpy as np
 
 class PrecipValidator:
     def __init__(self, df):

@@ -18,8 +18,8 @@ import json
 import logging
 from datetime import datetime
 
-from pgpar import calculate_params
-from time_series import TimeSeries
+from precipgen.core.pgpar import calculate_params
+from precipgen.core.time_series import TimeSeries
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

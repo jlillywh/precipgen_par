@@ -19,8 +19,8 @@ import json
 import logging
 from datetime import datetime
 
-from pgpar import calculate_params
-from time_series import TimeSeries
+from precipgen.core.pgpar import calculate_params
+from precipgen.core.time_series import TimeSeries
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -321,6 +321,10 @@ class RandomWalkParameterAnalyzer:
         
         The reversion rate is estimated by regressing parameter changes on parameter levels:
         Δx_t = r * (μ - x_{t-1}) + ε
+        
+        TODO: INVESTIGATE - pgpar.calc_reversion_rate() uses a different AR(1) approach
+        (reversion = 1 - b from X_{t+1} = a + b*X_t). Need to verify which methodology
+        is correct and consolidate implementations for consistency.
         
         Returns
         -------

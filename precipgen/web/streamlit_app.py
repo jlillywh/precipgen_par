@@ -10,13 +10,12 @@ import os
 import sys
 from pathlib import Path
 import json
-from datetime import datetime
+import math
 import subprocess
 
 # Import PrecipGen modules
-from find_stations import fetch_ghcn_inventory, parse_ghcn_inventory
-from find_ghcn_stations import read_inventory
-import math
+from precipgen.data.find_stations import fetch_ghcn_inventory, parse_ghcn_inventory
+from precipgen.data.find_ghcn_stations import read_inventory
 
 # Page configuration
 st.set_page_config(

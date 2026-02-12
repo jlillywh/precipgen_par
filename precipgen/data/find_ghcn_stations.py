@@ -1,7 +1,7 @@
 import pandas as pd
 from tqdm import tqdm
 import logging
-from ghcn_data import GHCNData
+from precipgen.data.ghcn_data import GHCNData
 
 # Configure logging to write to a file
 logging.basicConfig(filename='ghcn_stations.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

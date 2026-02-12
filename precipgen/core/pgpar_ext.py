@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import gamma, norm
-from pgpar import calculate_params  # Importing calculate_params from pg_par
+from precipgen.core.pgpar import calculate_params  # Importing calculate_params from pgpar
 
 def calculate_ext_params(precip_ts, window_years=3, output_path=None):
     """

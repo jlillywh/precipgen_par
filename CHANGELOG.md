@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-12
+
+### Changed
+- Standardized all Python imports to use proper package structure (`from precipgen.x import y`)
+- Updated test files to use full package paths instead of sys.path manipulation
+- Improved code maintainability and IDE support through explicit import statements
+- Enhanced project organization following Python packaging best practices
+
 ## [1.1.0] - 2026-02-11
 
 ### Changed

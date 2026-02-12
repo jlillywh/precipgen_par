@@ -3,16 +3,12 @@ import tempfile
 import os
 import pandas as pd
 import numpy as np
-import sys
 from unittest.mock import patch, MagicMock
 
-# Add the parent directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from time_series import TimeSeries
-from pgpar import calculate_params, calculate_window_params
-from pgpar_ext import calculate_ext_params
-from gap_analyzer import analyze_gaps
+from precipgen.core.time_series import TimeSeries
+from precipgen.core.pgpar import calculate_params, calculate_window_params
+from precipgen.core.pgpar_ext import calculate_ext_params
+from precipgen.data.gap_analyzer import analyze_gaps
 
 class TestTimeSeries(unittest.TestCase):
     """Test TimeSeries class functionality"""

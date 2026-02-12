@@ -92,6 +92,11 @@ def calculate_params(precip_ts):
     return params
 
 # Helper function to calculate reversion rate from a list of samples
+# TODO: INVESTIGATE - This function uses AR(1) model (reversion = 1 - b) while
+# RandomWalkParameterAnalyzer.calculate_reversion_rates() uses mean-reverting model
+# (Δx_t = r * (μ - x_{t-1})). Since calculate_window_params() produces inputs for
+# random walk models, these should use consistent methodology. Need to verify which
+# approach is correct and consolidate the implementations.
 def calc_reversion_rate(samples):
     """
     Estimate the AR(1) coefficient b from X_{t+1} = a + b*X_t +eps

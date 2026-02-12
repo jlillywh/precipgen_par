@@ -14,19 +14,17 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-# Add the current directory to Python path to import our modules
-sys.path.insert(0, os.path.abspath('.'))
-
-from time_series import TimeSeries
-from pgpar import calculate_params, calculate_window_params
-from pgpar_ext import calculate_ext_params
-from pgpar_wave import PrecipGenPARWave, analyze_precipgen_parameter_waves
-from random_walk_params import RandomWalkParameterAnalyzer, analyze_random_walk_parameters
-from ghcn_data import GHCNData
-from find_ghcn_stations import filter_stations_by_climate_zone, read_inventory, get_climate_zones
-from find_stations import fetch_ghcn_inventory, parse_ghcn_inventory, fetch_station_data, analyze_data_format
-from gap_analyzer import analyze_gaps
-from data_filler import fill_precipitation_data  # Add import for data filler
+# Import precipgen modules
+from precipgen.core.time_series import TimeSeries
+from precipgen.core.pgpar import calculate_params, calculate_window_params
+from precipgen.core.pgpar_ext import calculate_ext_params
+from precipgen.core.pgpar_wave import PrecipGenPARWave, analyze_precipgen_parameter_waves
+from precipgen.core.random_walk_params import RandomWalkParameterAnalyzer, analyze_random_walk_parameters
+from precipgen.data.ghcn_data import GHCNData
+from precipgen.data.find_ghcn_stations import filter_stations_by_climate_zone, read_inventory, get_climate_zones
+from precipgen.data.find_stations import fetch_ghcn_inventory, parse_ghcn_inventory, fetch_station_data, analyze_data_format
+from precipgen.data.gap_analyzer import analyze_gaps
+from precipgen.data.data_filler import fill_precipitation_data
 
 # Import project-aware output functions
 from easy_start import get_output_path as get_project_output_path, get_project_aware_output_path

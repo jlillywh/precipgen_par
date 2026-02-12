@@ -7,29 +7,49 @@ A tool for analyzing historical precipitation data and generating parameters for
 
 ## Quick Start
 
-### 🌐 Web Interface (Recommended for Beginners)
+### Web Interface (Recommended)
 ```bash
-pip install streamlit
-streamlit run streamlit_app.py
+streamlit run precipgen-web.py
 ```
-Or double-click `run_streamlit.bat` (Windows) / `run_streamlit.sh` (Mac/Linux)
+Or use the scripts: `scripts/run_streamlit.bat` (Windows) / `scripts/run_streamlit.sh` (Mac/Linux)
 
-See [STREAMLIT_GUIDE.md](STREAMLIT_GUIDE.md) for detailed instructions.
+See [Streamlit Guide](docs/guides/STREAMLIT_GUIDE.md) for detailed instructions.
 
-### 📋 Interactive Menu (CLI)
+### Interactive Menu
 ```bash
-python easy_start.py
+python precipgen-menu.py
 ```
 
-### ⌨️ Command Line Interface
+### Command Line Interface
 ```bash
 # Find stations near Denver, CO
-python cli.py find-stations-radius 39.7392 -104.9903 50 -o denver_stations.csv
+python precipgen-cli.py find-stations-radius 39.7392 -104.9903 50 -o denver_stations.csv
 
 # Download data and analyze
-python cli.py download-station USW00023066 -o denver_data.csv
-python cli.py fill-data denver_data.csv -o denver_filled.csv
-python cli.py params denver_filled.csv -o denver_parameters.csv
+python precipgen-cli.py download-station USW00023066 -o denver_data.csv
+python precipgen-cli.py fill-data denver_data.csv -o denver_filled.csv
+python precipgen-cli.py params denver_filled.csv -o denver_parameters.csv
+```
+
+## Project Structure
+
+```
+precipgen_par/
+├── precipgen/              # Main package
+│   ├── core/              # Core analysis modules
+│   ├── data/              # Data handling
+│   ├── cli/               # CLI interface
+│   └── web/               # Streamlit web app
+├── scripts/                # Executable scripts
+├── tests/                  # Test suite
+├── docs/                   # Documentation
+│   ├── guides/            # User guides
+│   ├── deployment/        # Deployment docs
+│   └── api/               # API documentation
+├── precipgen-web.py       # Web interface launcher
+├── precipgen-cli.py       # CLI launcher
+├── precipgen-menu.py      # Interactive menu launcher
+└── README.md
 ```
 
 ## Features
@@ -157,8 +177,11 @@ Key Parameters Generated:
 
 ## Documentation
 
-- [Getting Started Guide](GETTING_STARTED.md) - Complete setup and usage instructions
-- [Quick Reference](QUICK_REFERENCE.md) - Command reference and examples
+- [Getting Started Guide](docs/guides/GETTING_STARTED.md) - Complete setup and usage instructions
+- [Quick Reference](docs/guides/QUICK_REFERENCE.md) - Command reference and examples
+- [Streamlit Guide](docs/guides/STREAMLIT_GUIDE.md) - Web interface documentation
+- [Data Filling Guide](docs/guides/FILL_DATA_GUIDE.md) - Gap filling documentation
+- [Deployment Guide](docs/deployment/DEPLOYMENT.md) - Deployment instructions
 
 ## Command Line Interface
 
@@ -190,13 +213,11 @@ The CLI provides comprehensive tools for precipitation data analysis:
 
 ```bash
 # Direct Python usage (cross-platform)
-python cli.py <command> [options]
+python precipgen-cli.py <command> [options]
 
-# Windows batch script
-precipgen.bat <command> [options]
-
-# PowerShell script
-./precipgen.ps1 <command> [options]
+# Or use scripts (for convenience)
+python scripts/precipgen.bat <command> [options]  # Windows
+./scripts/precipgen.sh <command> [options]        # Linux/Mac
 ```
 
 ### Two-Stage Workflow for Station Analysis
@@ -206,10 +227,10 @@ Find weather stations by geographic location or climate characteristics:
 
 ```bash
 # Find stations within 50km of Denver, Colorado
-python cli.py find-stations-radius 39.7392 -104.9903 50 --download -o denver_stations.csv
+python precipgen-cli.py find-stations-radius 39.7392 -104.9903 50 --download -o denver_stations.csv
 
 # Find stations by climate zone
-python cli.py find-stations temperate --download -o temperate_stations.csv
+python precipgen-cli.py find-stations temperate --download -o temperate_stations.csv
 ```
 
 #### Stage 2: Data Quality Assessment
@@ -217,7 +238,7 @@ Evaluate multiple stations with batch gap analysis:
 
 ```bash
 # Analyze data quality for 2000-2023 period
-python cli.py batch-gap-analysis denver_stations.csv \
+python precipgen-cli.py batch-gap-analysis denver_stations.csv \
   --start-year 2000 --end-year 2023 \
   -o denver_wellness.csv
 ```
@@ -226,47 +247,47 @@ python cli.py batch-gap-analysis denver_stations.csv \
 
 ```bash
 # Download station data
-python cli.py download-station USW00023066 -o data.csv
+python precipgen-cli.py download-station USW00023066 -o data.csv
 
 # Check data quality
-python cli.py gap-analysis data.csv --gap-threshold 14
+python precipgen-cli.py gap-analysis data.csv --gap-threshold 14
 
 # Fill missing data if needed
-python cli.py fill-data data.csv -o filled_data.csv
+python precipgen-cli.py fill-data data.csv -o filled_data.csv
 
 # Calculate parameters
-python cli.py params filled_data.csv -o params.csv
+python precipgen-cli.py params filled_data.csv -o params.csv
 
 # Advanced analysis
-python cli.py wave-analysis filled_data.csv --create-plots -o wave_results
-python cli.py window filled_data.csv --window-years 3 -o window_stats.csv
+python precipgen-cli.py wave-analysis filled_data.csv --create-plots -o wave_results
+python precipgen-cli.py window filled_data.csv --window-years 3 -o window_stats.csv
 ```
 
 ### Complete Workflow Example
 
 ```bash
 # 1. Find stations near Denver within 50km
-python cli.py find-stations-radius 39.7392 -104.9903 50 --download -o denver_stations.csv
+python precipgen-cli.py find-stations-radius 39.7392 -104.9903 50 --download -o denver_stations.csv
 
 # 2. Evaluate data quality
-python cli.py batch-gap-analysis denver_stations.csv \
+python precipgen-cli.py batch-gap-analysis denver_stations.csv \
   --start-year 2000 --end-year 2023 \
   -o denver_wellness.csv
 
 # 3. Download best station from results
-python cli.py download-station USW00023062 -o denver_data.csv
+python precipgen-cli.py download-station USW00023062 -o denver_data.csv
 
 # 4. Analyze data quality
-python cli.py gap-analysis denver_data.csv --start-year 2000 --end-year 2023
+python precipgen-cli.py gap-analysis denver_data.csv --start-year 2000 --end-year 2023
 
 # 5. Fill gaps if needed
-python cli.py fill-data denver_data.csv -o denver_filled.csv
+python precipgen-cli.py fill-data denver_data.csv -o denver_filled.csv
 
 # 6. Calculate parameters
-python cli.py params denver_filled.csv --start-year 2000 --end-year 2023 -o denver_params.csv
+python precipgen-cli.py params denver_filled.csv --start-year 2000 --end-year 2023 -o denver_params.csv
 
 # 7. Advanced analysis
-python cli.py wave-analysis denver_filled.csv --create-plots -o denver_wave_analysis
+python precipgen-cli.py wave-analysis denver_filled.csv --create-plots -o denver_wave_analysis
 ```
 
 ### Common Options

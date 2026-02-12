@@ -1,15 +1,11 @@
 import unittest
 import os
-import sys
 import pandas as pd
 import numpy as np
 from unittest.mock import patch, MagicMock
 
-# Add the parent directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from time_series import TimeSeries
-from pgpar import calculate_params
+from precipgen.core.time_series import TimeSeries
+from precipgen.core.pgpar import calculate_params
 
 class TestPrecipGenPAR(unittest.TestCase):
     @classmethod
