@@ -186,11 +186,11 @@ def cmd_test(args):
     print(f"Test Summary:")
     print(f"Ran {result.testsRun} test(s)")
     if result.wasSuccessful():
-        print("✅ All tests passed!")
+        print("All tests passed!")
         return 0
     else:
-        print(f"❌ Failures: {len(result.failures)}")
-        print(f"❌ Errors: {len(result.errors)}")
+        print(f"Failures: {len(result.failures)}")
+        print(f"Errors: {len(result.errors)}")
         return 1
 
 
@@ -340,7 +340,7 @@ def cmd_download_station(args):
             
             # Check if file exists and confirm overwrite
             if os.path.exists(output_file) and not args.force:
-                print(f"\n⚠️  File '{output_file}' already exists!")
+                print(f"\nWARNING: File '{output_file}' already exists!")
                 while True:
                     response = input("Do you want to overwrite it? (y/n): ").strip().lower()
                     if response in ['y', 'yes']:
@@ -351,11 +351,11 @@ def cmd_download_station(args):
                     else:
                         print("Please enter 'y' for yes or 'n' for no.")
             elif os.path.exists(output_file) and args.force:
-                print(f"🔄 Overwriting existing file: {output_file}")
+                print(f"Overwriting existing file: {output_file}")
             
             # Save data
             ghcn_data.save_to_csv(output_file)
-            print(f"✅ Data saved to: {output_file}")
+            print(f"Data saved to: {output_file}")
               # Show enhanced precipitation statistics
             if hasattr(ghcn_data, 'data') and 'PRCP' in ghcn_data.data.columns:
                 df = ghcn_data.data.copy()
@@ -394,7 +394,7 @@ def cmd_download_station(args):
                 max_dry_streak = max_consecutive_dry_days(df['PRCP'])
                 max_daily_precip = df['PRCP'].max()
                 
-                print(f"\n📊 Precipitation Summary:")
+                print(f"\nPrecipitation Summary:")
                 print(f"Average annual precipitation: {annual_stats['annual_precip'].mean():.1f} mm")
                 print(f"Average annual wet days: {annual_wet_dry['wet_days'].mean():.0f} days")
                 print(f"Average annual dry days: {annual_wet_dry['dry_days'].mean():.0f} days")
@@ -429,8 +429,8 @@ def cmd_list_climate_zones(args):
             for i, area in enumerate(climate_areas, 1):
                 lat_range = area["lat_range"]
                 long_range = area["long_range"] 
-                print(f"    {i}. Latitude: {lat_range[0]}° to {lat_range[1]}°, "
-                      f"Longitude: {long_range[0]}° to {long_range[1]}°")
+                print(f"    {i}. Latitude: {lat_range[0]} to {lat_range[1]}, "
+                      f"Longitude: {long_range[0]} to {long_range[1]}")
         print()
 
 
@@ -493,24 +493,24 @@ def cmd_gap_analysis(args):
         return 1
     
     # Display comprehensive results
-    print(f"\n📊 GAP ANALYSIS SUMMARY")
+    print(f"\nGAP ANALYSIS SUMMARY")
     print(f"=" * 60)
-    print(f"📅 Analysis Period: {results['min_date'].strftime('%Y-%m-%d')} to {results['max_date'].strftime('%Y-%m-%d')}")
-    print(f"📈 Total Days in Range: {results['total_days']:,}")
-    print(f"❌ Total Missing Days: {results['total_missing_days']:,}")
+    print(f"Analysis Period: {results['min_date'].strftime('%Y-%m-%d')} to {results['max_date'].strftime('%Y-%m-%d')}")
+    print(f"Total Days in Range: {results['total_days']:,}")
+    print(f"Total Missing Days: {results['total_missing_days']:,}")
     
     if results['total_days'] > 0:
         coverage_pct = ((results['total_days'] - results['total_missing_days']) / results['total_days']) * 100
-        print(f"✅ Data Coverage: {coverage_pct:.2f}%")
+        print(f"Data Coverage: {coverage_pct:.2f}%")
     
-    print(f"\n🔍 GAP DISTRIBUTION")
+    print(f"\nGAP DISTRIBUTION")
     print(f"=" * 60)
-    print(f"🟢 Short Gaps (≤{args.gap_threshold} days): {results['short_gap_count']}")
-    print(f"🔴 Long Gaps (>{args.gap_threshold} days): {results['long_gap_count']}")
+    print(f"Short Gaps (<={args.gap_threshold} days): {results['short_gap_count']}")
+    print(f"Long Gaps (>{args.gap_threshold} days): {results['long_gap_count']}")
     
     # Display long gaps details if any
     if results['long_gap_count'] > 0:
-        print(f"\n📋 LONG GAPS DETAILS")
+        print(f"\nLONG GAPS DETAILS")
         print(f"=" * 60)
         long_gaps_df = results['long_gaps']
         
@@ -520,26 +520,26 @@ def cmd_gap_analysis(args):
             duration = gap['duration']
             
             print(f"Gap #{idx + 1}:")
-            print(f"  📅 Period: {start_str} to {end_str}")
-            print(f"  ⏱️  Duration: {duration} days")
-            print(f"  📊 Years affected: {duration / 365.25:.1f}")
+            print(f"  Period: {start_str} to {end_str}")
+            print(f"  Duration: {duration} days")
+            print(f"  Years affected: {duration / 365.25:.1f}")
             print()
     
     # Data quality assessment
-    print(f"📋 DATA QUALITY ASSESSMENT")
+    print(f"DATA QUALITY ASSESSMENT")
     print(f"=" * 60)
     
     if coverage_pct >= 95:
-        quality_status = "🟢 EXCELLENT"
+        quality_status = "EXCELLENT"
         recommendation = "Data is suitable for parameter calculation"
     elif coverage_pct >= 90:
-        quality_status = "🟡 GOOD"
+        quality_status = "GOOD"
         recommendation = "Data is generally suitable, consider gap filling for long gaps"
     elif coverage_pct >= 80:
-        quality_status = "🟠 FAIR"
+        quality_status = "FAIR"
         recommendation = "Consider gap filling or use with caution"
     else:
-        quality_status = "🔴 POOR"
+        quality_status = "POOR"
         recommendation = "Gap filling strongly recommended before analysis"
     
     print(f"Quality Status: {quality_status}")
@@ -547,14 +547,14 @@ def cmd_gap_analysis(args):
     
     # Parameter calculation recommendations
     if results['long_gap_count'] == 0:
-        print(f"✅ Ready for parameter calculation - no significant gaps detected")
+        print(f"Ready for parameter calculation - no significant gaps detected")
     elif results['long_gap_count'] <= 3 and coverage_pct >= 90:
-        print(f"⚠️  Proceed with caution - {results['long_gap_count']} long gap(s) detected")
+        print(f"WARNING: Proceed with caution - {results['long_gap_count']} long gap(s) detected")
     else:
-        print(f"⚠️  Consider data preprocessing before parameter calculation")
+        print(f"WARNING: Consider data preprocessing before parameter calculation")
     
     # Add yearly gap analysis
-    print(f"\n📅 YEARLY GAP ANALYSIS")
+    print(f"\nYEARLY GAP ANALYSIS")
     print(f"=" * 60)
     
     yearly_results = analyze_yearly_gaps(data, args.column)
@@ -562,14 +562,14 @@ def cmd_gap_analysis(args):
         yearly_stats = yearly_results['summary_statistics']
         significant_years = yearly_results['years_with_significant_gaps']
         
-        print(f"📈 Years analyzed: {yearly_stats['total_years_analyzed']}")
-        print(f"📊 Average missing days per year: {yearly_stats['avg_missing_days_per_year']}")
-        print(f"🔺 Maximum missing days in any year: {yearly_stats['max_missing_days_any_year']}")
-        print(f"⏱️  Maximum consecutive missing: {yearly_stats['max_consecutive_missing_any_year']} days")
-        print(f"✅ Years with no gaps: {yearly_stats['years_with_no_gaps']}")
+        print(f"Years analyzed: {yearly_stats['total_years_analyzed']}")
+        print(f"Average missing days per year: {yearly_stats['avg_missing_days_per_year']}")
+        print(f"Maximum missing days in any year: {yearly_stats['max_missing_days_any_year']}")
+        print(f"Maximum consecutive missing: {yearly_stats['max_consecutive_missing_any_year']} days")
+        print(f"Years with no gaps: {yearly_stats['years_with_no_gaps']}")
         
         if significant_years:
-            print(f"\n⚠️  YEARS WITH SIGNIFICANT GAPS (>{yearly_stats['significant_threshold']} days):")
+            print(f"\nWARNING: YEARS WITH SIGNIFICANT GAPS (>{yearly_stats['significant_threshold']} days):")
             print(f"   Found {len(significant_years)} years that may impact statistical modeling")
             print(f"   {'Year':<8} {'Missing':<8} {'Max Run':<8} {'% Missing':<10}")
             print(f"   {'-'*8} {'-'*8} {'-'*8} {'-'*10}")
@@ -580,13 +580,13 @@ def cmd_gap_analysis(args):
             if len(significant_years) > 10:
                 print(f"   ... and {len(significant_years) - 10} more years")
             
-            print(f"\n   💡 Consider these years carefully for statistical modeling")
-            print(f"   💡 Filled data in these years may bias PrecipGen parameters")
+            print(f"\n   NOTE: Consider these years carefully for statistical modeling")
+            print(f"   NOTE: Filled data in these years may bias PrecipGen parameters")
         else:
-            print(f"✅ No years with >{yearly_stats['significant_threshold']} missing days found")
-            print(f"✅ All years appear suitable for statistical analysis")
+            print(f"No years with >{yearly_stats['significant_threshold']} missing days found")
+            print(f"All years appear suitable for statistical analysis")
     else:
-        print("❌ Yearly analysis could not be completed")
+        print("Yearly analysis could not be completed")
     
       # Save detailed results if requested
     if args.output:
@@ -624,13 +624,13 @@ def cmd_gap_analysis(args):
         
         summary_file = base_dir / f"{base_name}_gap_analysis_summary.csv"
         summary_df.to_csv(summary_file, index=False)
-        print(f"\n💾 Gap analysis summary saved to: {summary_file}")
+        print(f"\nGap analysis summary saved to: {summary_file}")
         
         # Save long gaps details if any exist
         if results['long_gap_count'] > 0:
             gaps_file = base_dir / f"{base_name}_long_gaps.csv"
             results['long_gaps'].to_csv(gaps_file, index=False)
-            print(f"💾 Long gaps details saved to: {gaps_file}")
+            print(f"Long gaps details saved to: {gaps_file}")
             
         # Save yearly analysis details if significant years exist
         if yearly_results and yearly_results['years_with_significant_gaps']:
@@ -648,7 +648,7 @@ def cmd_gap_analysis(args):
                 yearly_df = pd.DataFrame(yearly_data)
                 yearly_file = base_dir / f"{base_name}_significant_years.csv"
                 yearly_df.to_csv(yearly_file, index=False)
-                print(f"💾 Significant years analysis saved to: {yearly_file}")
+                print(f"Significant years analysis saved to: {yearly_file}")
     
     print(f"\n" + "=" * 60)
     return 0 if coverage_pct >= 80 else 1  # Return error code if coverage is poor
@@ -798,17 +798,17 @@ def cmd_batch_gap_analysis(args):
         
         for i, station_id in enumerate(station_ids, 1):
             print(f"\n{'='*60}")
-            print(f"📊 ANALYZING STATION {i}/{len(station_ids)}: {station_id}")
+            print(f"ANALYZING STATION {i}/{len(station_ids)}: {station_id}")
             print(f"{'='*60}")
             
             try:
                 # Download station data
-                print(f"⬇️  Downloading data for {station_id}...")
+                print(f"Downloading data for {station_id}...")
                 ghcn_data = GHCNData()
                 ghcn_data.fetch(station_id)
                 
                 if ghcn_data.data is None:
-                    print(f"❌ Failed to download data for {station_id}")
+                    print(f"Failed to download data for {station_id}")
                     download_failed.append(station_id)
                     continue
                 
@@ -828,15 +828,15 @@ def cmd_batch_gap_analysis(args):
                         data = data[data.index <= end_date]
                 
                 if data.empty:
-                    print(f"❌ No data available for {station_id} in specified date range")
+                    print(f"No data available for {station_id} in specified date range")
                     continue
                 
                 # Perform gap analysis
-                print(f"🔍 Analyzing gaps...")
+                print(f"Analyzing gaps...")
                 gap_results = analyze_gaps(data, args.column, args.gap_threshold)
                 
                 if gap_results is None:
-                    print(f"❌ Gap analysis failed for {station_id}")
+                    print(f"Gap analysis failed for {station_id}")
                     continue
                 
                 # Calculate wellness metrics
@@ -882,14 +882,14 @@ def cmd_batch_gap_analysis(args):
                 wellness_results.append(wellness_data)
                 
                 # Print summary for this station
-                print(f"✅ Analysis complete:")
-                print(f"   📅 Period: {wellness_data['ANALYSIS_START']} to {wellness_data['ANALYSIS_END']}")
-                print(f"   📊 Coverage: {wellness_data['COVERAGE_PCT']}%")
-                print(f"   🏆 Quality: {wellness_data['QUALITY_RATING']}")
-                print(f"   🔴 Long gaps: {wellness_data['LONG_GAPS']}")
+                print(f"Analysis complete:")
+                print(f"   Period: {wellness_data['ANALYSIS_START']} to {wellness_data['ANALYSIS_END']}")
+                print(f"   Coverage: {wellness_data['COVERAGE_PCT']}%")
+                print(f"   Quality: {wellness_data['QUALITY_RATING']}")
+                print(f"   Long gaps: {wellness_data['LONG_GAPS']}")
                 
             except Exception as e:
-                print(f"❌ Error analyzing {station_id}: {e}")
+                print(f"Error analyzing {station_id}: {e}")
                 continue
         
         # Create wellness summary
@@ -900,7 +900,7 @@ def cmd_batch_gap_analysis(args):
             wellness_df = wellness_df.sort_values(['QUALITY_SCORE', 'COVERAGE_PCT'], ascending=[False, False])
             
             print(f"\n{'='*80}")
-            print(f"📋 BATCH GAP ANALYSIS SUMMARY")
+            print(f"BATCH GAP ANALYSIS SUMMARY")
             print(f"{'='*80}")
             print(f"Total stations analyzed: {len(wellness_results)}")
             print(f"Download failures: {len(download_failed)}")
@@ -912,7 +912,7 @@ def cmd_batch_gap_analysis(args):
                 print(f"  {quality}: {count} stations")
             
             # Best stations
-            print(f"\n🏆 TOP STATIONS BY QUALITY:")
+            print(f"\nTOP STATIONS BY QUALITY:")
             top_stations = wellness_df.head(min(10, len(wellness_df)))
             
             display_cols = ['STATION_ID', 'STATION_NAME', 'DISTANCE_KM', 'COVERAGE_PCT', 'QUALITY_RATING', 'LONG_GAPS']
@@ -921,7 +921,7 @@ def cmd_batch_gap_analysis(args):
             if args.output:
                 output_path = get_output_path(args.output)
                 wellness_df.to_csv(output_path, index=False)
-                print(f"\n💾 Wellness summary saved to: {output_path}")
+                print(f"\nWellness summary saved to: {output_path}")
                 
                 # Also save failed downloads list
                 if download_failed:
@@ -929,12 +929,12 @@ def cmd_batch_gap_analysis(args):
                     with open(failed_file, 'w') as f:
                         for station in download_failed:
                             f.write(f"{station}\n")
-                    print(f"💾 Failed downloads list saved to: {failed_file}")
+                    print(f"Failed downloads list saved to: {failed_file}")
             
             print(f"\n{'='*80}")
             return 0
         else:
-            print("❌ No successful analyses completed")
+            print("No successful analyses completed")
             return 1
             
     except Exception as e:
@@ -1081,7 +1081,7 @@ def cmd_fill_data(args):
     if report['recommendations']:
         print(f"\nRecommendations:")
         for rec in report['recommendations']:
-            print(f"  • {rec}")
+            print(f"  - {rec}")
     
     print(f"\nFilled data saved to: {args.output}")
     report_file = args.output.replace('.csv', '_filling_report.json')
@@ -1110,7 +1110,7 @@ Examples:
   # Fill missing data (Note: May affect statistics for PrecipGen modeling)
   %(prog)s fill-data data.csv -o filled_data.csv
 
-⚠️  IMPORTANT: The fill-data command uses deterministic gap filling that may
+WARNING: The fill-data command uses deterministic gap filling that may
 affect precipitation statistics needed for PrecipGen stochastic modeling.
         """
     )

@@ -1,18 +1,18 @@
 # PrecipGen PAR - Precipitation Parameter Analysis
 
-**An easy-to-use tool for analyzing historical precipitation data and generating parameters for stochastic precipitation modeling.**
+A tool for analyzing historical precipitation data and generating parameters for stochastic precipitation modeling.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🚀 Quick Start
+## Quick Start
 
-**For beginners - Use the Interactive Menu:**
+Interactive menu:
 ```bash
 python easy_start.py
 ```
 
-**For advanced users - Use the Command Line:**
+Command line interface:
 ```bash
 # Find stations near Denver, CO
 python cli.py find-stations-radius 39.7392 -104.9903 50 -o denver_stations.csv
@@ -23,16 +23,16 @@ python cli.py fill-data denver_data.csv -o denver_filled.csv
 python cli.py params denver_filled.csv -o denver_parameters.csv
 ```
 
-## ✨ Features
+## Features
 
-- **🏙️ Smart City Search** - Just type "Denver", "Seattle", "New York" - no coordinates needed
-- **📁 Project Organization** - Automatic folder structure keeps your work organized
-- **🔧 Professional Data Filling** - Meteorological-grade gap filling using multiple methods
-- **📊 Advanced Analysis** - Random walk parameters, climate trends, wave analysis
-- **🎯 Beginner-Friendly** - Interactive menu guides you through the entire process
-- **⚡ Automated Workflow** - Download data directly from NOAA, no manual website navigation
+- Smart city search by name or coordinates
+- Automatic project organization
+- Professional data filling using meteorological methods
+- Advanced analysis: random walk parameters, climate trends, wave analysis
+- Interactive menu interface
+- Automated workflow with direct NOAA data download
 
-## 📋 What This Tool Does
+## What This Tool Does
 
 PrecipGen PAR analyzes historical precipitation data to generate parameters for stochastic precipitation simulation. It's based on the proven WGEN model (1983) and includes modern enhancements:
 
@@ -44,29 +44,20 @@ PrecipGen PAR analyzes historical precipitation data to generate parameters for 
 
 The output parameters can be used with precipitation simulation models like PrecipGen to generate synthetic precipitation time series for long-term studies.
 
-## 📦 Installation
+## Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/precipgen_par.git
-   cd precipgen_par
-   ```
+```bash
+git clone https://github.com/yourusername/precipgen_par.git
+cd precipgen_par
+pip install -r requirements.txt
+python easy_start.py  # Test installation
+```
 
-2. **Install Python 3.9+ (64-bit recommended):**
-   - Download from [python.org](https://python.org)
-   - Make sure to check "Add Python to PATH" during installation
+Requirements:
+- Python 3.9+ (64-bit recommended)
+- Dependencies listed in requirements.txt
 
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Test the installation:**
-   ```bash
-   python easy_start.py
-   ```
-
-## 🎯 Usage Examples
+## Usage Examples
 
 ### Example 1: Complete Beginner Workflow
 ```bash
@@ -98,9 +89,9 @@ python cli.py fill-data seattle_data.csv -o seattle_filled.csv
 # Calculate basic parameters
 python cli.py params seattle_filled.csv -o seattle_parameters.csv
 
-# Advanced random walk analysis
-python cli.py random-walk seattle_filled.csv \
-  --seasonal-analysis --create-plots -o seattle_random_walk
+# Advanced wave analysis
+python cli.py wave-analysis seattle_filled.csv \
+  --create-plots -o seattle_wave_analysis
 ```
 
 ### Example 3: Batch Analysis
@@ -112,8 +103,13 @@ python cli.py find-stations arid -o arid_stations.csv
 # Analyze data quality across regions  
 python cli.py batch-gap-analysis temperate_stations.csv -o quality_report.csv
 ```
+python cli.py find-stations arid -o arid_stations.csv
 
-## 📊 Output Files
+# Analyze data quality across regions  
+python cli.py batch-gap-analysis temperate_stations.csv -o quality_report.csv
+```
+
+## Output Files
 
 PrecipGen PAR creates organized project folders with descriptive file names:
 
@@ -131,7 +127,7 @@ your_analysis_folder/
     └── [similar files for Seattle]
 ```
 
-## 🔬 Scientific Background
+## Scientific Background
 
 This tool implements the proven WGEN precipitation model (Richardson & Wright, 1984) with modern enhancements:
 
@@ -141,42 +137,184 @@ This tool implements the proven WGEN precipitation model (Richardson & Wright, 1
 - **Random Walk Extensions**: Captures long-term variability and climate trends
 - **Professional Data QA**: Meteorological-grade gap filling and quality control
 
-**Key Parameters Generated:**
+Key Parameters Generated:
 - **PWW**: Probability of wet day following wet day
 - **PWD**: Probability of wet day following dry day  
 - **alpha, beta**: Gamma distribution shape and scale parameters
 - **Volatility**: Parameter variability over time
 - **Reversion rates**: Mean-reverting behavior coefficients
 
-## 📚 Documentation
+## Documentation
 
-- **[Getting Started Guide](GETTING_STARTED.md)** - Complete setup and usage instructions
-- **[Quick Reference](QUICK_REFERENCE.md)** - Command reference and examples
-- **[CLI README](CLI_README.md)** - Command-line interface documentation
+- [Getting Started Guide](GETTING_STARTED.md) - Complete setup and usage instructions
+- [Quick Reference](QUICK_REFERENCE.md) - Command reference and examples
 
-## 🆕 Recent Updates
+## Command Line Interface
 
-- **Smart City Search**: Search for weather stations by city name (200+ US cities)
-- **Project Organization**: Automatic folder structure keeps work organized by location
-- **Streamlined Interface**: Beginner-friendly menu system with guided workflow
-- **Advanced Analysis**: Random walk parameters, climate trend detection, seasonal analysis
-- **Professional Data Filling**: Meteorological-grade gap filling algorithms
+### Available Commands
 
-## 🤝 Contributing
+The CLI provides comprehensive tools for precipitation data analysis:
+
+**Analysis Commands:**
+- `params` - Calculate monthly precipitation parameters (PWW, PWD, alpha, beta)
+- `window` - Calculate window-based parameter statistics (volatility, reversion rates)
+- `ext-params` - Calculate extended parameters with distribution fitting
+- `wave-analysis` - Analyze temporal evolution of parameters using wave functions
+- `gap-analysis` - Analyze missing data gaps in precipitation dataset
+- `fill-data` - Fill missing values using meteorological methods
+- `info` - Display dataset information
+
+**Station Discovery Commands:**
+- `find-stations` - Find GHCN stations by climate zone
+- `find-stations-radius` - Find stations within radius of coordinates
+- `batch-gap-analysis` - Evaluate data quality across multiple stations
+- `download-station` - Download data for a specific GHCN station
+- `station-info` - Get information about a GHCN station
+- `list-zones` - List available climate zones
+
+**Utility Commands:**
+- `test` - Run the test suite
+
+### Command Syntax
+
+```bash
+# Direct Python usage (cross-platform)
+python cli.py <command> [options]
+
+# Windows batch script
+precipgen.bat <command> [options]
+
+# PowerShell script
+./precipgen.ps1 <command> [options]
+```
+
+### Two-Stage Workflow for Station Analysis
+
+#### Stage 1: Station Discovery
+Find weather stations by geographic location or climate characteristics:
+
+```bash
+# Find stations within 50km of Denver, Colorado
+python cli.py find-stations-radius 39.7392 -104.9903 50 --download -o denver_stations.csv
+
+# Find stations by climate zone
+python cli.py find-stations temperate --download -o temperate_stations.csv
+```
+
+#### Stage 2: Data Quality Assessment
+Evaluate multiple stations with batch gap analysis:
+
+```bash
+# Analyze data quality for 2000-2023 period
+python cli.py batch-gap-analysis denver_stations.csv \
+  --start-year 2000 --end-year 2023 \
+  -o denver_wellness.csv
+```
+
+### Individual Station Analysis
+
+```bash
+# Download station data
+python cli.py download-station USW00023066 -o data.csv
+
+# Check data quality
+python cli.py gap-analysis data.csv --gap-threshold 14
+
+# Fill missing data if needed
+python cli.py fill-data data.csv -o filled_data.csv
+
+# Calculate parameters
+python cli.py params filled_data.csv -o params.csv
+
+# Advanced analysis
+python cli.py wave-analysis filled_data.csv --create-plots -o wave_results
+python cli.py window filled_data.csv --window-years 3 -o window_stats.csv
+```
+
+### Complete Workflow Example
+
+```bash
+# 1. Find stations near Denver within 50km
+python cli.py find-stations-radius 39.7392 -104.9903 50 --download -o denver_stations.csv
+
+# 2. Evaluate data quality
+python cli.py batch-gap-analysis denver_stations.csv \
+  --start-year 2000 --end-year 2023 \
+  -o denver_wellness.csv
+
+# 3. Download best station from results
+python cli.py download-station USW00023062 -o denver_data.csv
+
+# 4. Analyze data quality
+python cli.py gap-analysis denver_data.csv --start-year 2000 --end-year 2023
+
+# 5. Fill gaps if needed
+python cli.py fill-data denver_data.csv -o denver_filled.csv
+
+# 6. Calculate parameters
+python cli.py params denver_filled.csv --start-year 2000 --end-year 2023 -o denver_params.csv
+
+# 7. Advanced analysis
+python cli.py wave-analysis denver_filled.csv --create-plots -o denver_wave_analysis
+```
+
+### Common Options
+
+- `-o, --output` - Output file path
+- `--start-year`, `--end-year` - Date range filtering
+- `--window-years` - Years per analysis window (default: varies by command)
+- `--gap-threshold` - Threshold for short vs long gaps in days (default: 7)
+- `--create-plots` - Generate visualization plots
+- `--download` - Auto-download GHCN inventory
+- `-h, --help` - Command help
+
+### Data Quality Ratings
+
+- **EXCELLENT (≥95%)** - Ready for parameter calculation
+- **GOOD (≥90%)** - Generally suitable
+- **FAIR (≥80%)** - Use with caution, gap filling recommended
+- **POOR (<80%)** - Gap filling strongly recommended
+
+### Input Data Format
+
+CSV files with precipitation data:
+```csv
+DATE,PRCP
+1900-01-01,0.0
+1900-01-02,2.5
+1900-01-03,0.0
+```
+
+Requirements:
+- `DATE` column in YYYY-MM-DD format
+- `PRCP` column with numeric precipitation values
+- First 6 rows treated as metadata (skipped)
+
+For detailed CLI documentation, see the full command reference in the codebase.
+
+## Recent Updates
+
+- Smart City Search: Search for weather stations by city name (200+ US cities)
+- Project Organization: Automatic folder structure keeps work organized by location
+- Streamlined Interface: Beginner-friendly menu system with guided workflow
+- Advanced Analysis: Random walk parameters, climate trend detection, seasonal analysis
+- Professional Data Filling: Meteorological-grade gap filling algorithms
+
+## Contributing
 
 Contributions are welcome! Please feel free to submit issues and enhancement requests.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 References
+## References
 
 - Richardson, C.W. & Wright, D.A. (1984). WGEN: A model for generating daily weather variables. USDA Agricultural Research Service.
 - Based on the foundational FORTRAN implementation from 1983
 - Modern Python implementation with enhanced features for climate analysis
 
-## 🆘 Support
+## Support
 
 - Check the [Getting Started Guide](GETTING_STARTED.md) for detailed instructions
 - Look at [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for common tasks
@@ -184,255 +322,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Perfect for:** Climate researchers, hydrologists, environmental consultants, students, and anyone needing reliable precipitation parameters for stochastic modeling.
-
-2. **Create a virtual environment:**
-
-    ```sh
-    python -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-    ```
-
-3. **Install the required dependencies:**
-
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-## Quick Start for New Users
-
-### For Beginners - Easy Menu Interface
-
-If you're new to command line tools, use the easy menu interface:
-
-**Windows:**
-```cmd
-# Double-click start_precipgen.bat
-# OR run in command prompt:
-python easy_start.py
-```
-
-**Mac/Linux:**
-```bash
-# Make executable and run:
-chmod +x start_precipgen.sh
-./start_precipgen.sh
-# OR run directly:
-python3 easy_start.py
-```
-
-This will give you a simple menu to:
-1. Check data quality
-2. Calculate parameters  
-3. Run wave analysis
-4. Get help finding weather data
-
-### For Command Line Users
-
-See the [Getting Started Guide](GETTING_STARTED.md) for detailed command line instructions.
-
-### First Time Setup
-
-1. **Install Python 3.8+** from https://python.org
-2. **Download this tool** from GitHub
-3. **Install dependencies**: `pip install -r requirements.txt`
-4. **Get weather data** from https://www.ncdc.noaa.gov/cdo-web/
-5. **Run analysis**: Use `python easy_start.py` or command line tools
-
-### Example Workflow
-
-```bash
-# Easy way - menu interface
-python easy_start.py
-
-# Command line way
-python cli.py download-station USW00023066 -o data.csv
-python cli.py fill-data data.csv -o filled_data.csv  # NEW: Fill missing values
-python cli.py gap-analysis filled_data.csv -o gaps.csv
-python cli.py params filled_data.csv -o parameters.csv  
-python cli.py wave-analysis filled_data.csv --create-plots --project-years 20
-```
-
-### 4.2 Running the PrecipGenPAR Script
-
-1. **Run the script:**
-
-    ```sh
-    python pgpar_cmd.py
-    ```
-
-2. **Follow the prompts:**
-
-    - Enter the GHCN station ID when prompted.
-
-3. **View the results:**
-
-    - The script will fetch and process the data, then save the results to a CSV file named `<station_id>_precipitation_parameters.csv`.
-
-### 4.3 Example
-
-```sh
-$ python pgpar_cmd.py
-Enter the GHCN station ID: USW00094728
-Fetching data for station USW00094728...
-Dataset Summary:
-Station Name: NEW YORK CENTRAL PARK, NY US
-Station ID: USW00094728
-Location: NY
-Coordinates: 40.779, -73.969
-Elevation: 42.1 meters
-Precipitation units: inches
-Date Range: 01/01/2020 to 12/31/2020
-Total Records: 366
-Precipitation Stats:
-  Average Annual Precipitation: 49.92 inches
-  Mean Daily Precipitation: 0.14 inches
-  Standard Deviation: 0.34 inches
-
-Annual Precipitation Autocorrelation:
-  Autocorrelation: 0.1234
-  Optimal Lag: 1 year(s)
-
-Results saved to USW00094728_precipitation_parameters.csv
-```
-
-### 4.4 Wave Analysis of Parameter Evolution
-
-The system includes advanced wave function analysis to characterize the temporal evolution of PrecipGen parameters. This analysis identifies cyclic patterns and trends in PWW, PWD, alpha, and beta over time.
-
-#### Usage:
-
-```sh
-# Basic wave analysis
-python cli.py wave-analysis input_data.csv -o wave_results
-
-# Advanced wave analysis with custom parameters
-python cli.py wave-analysis input_data.csv \
-  --window-years 10 \
-  --overlap 0.5 \
-  --num-components 5 \
-  --create-plots \
-  --project-years 20 \
-  -o wave_analysis_output
-
-# Demo script for comprehensive analysis
-python demo_pgpar_wave.py
-```
-
-#### Parameters:
-- `--window-years`: Size of sliding window in years (default: 10)
-- `--overlap`: Window overlap fraction (default: 0.5)
-- `--num-components`: Number of wave components to extract (default: 5)
-- `--min-data-threshold`: Minimum data coverage per window (default: 0.8)
-- `--project-years`: Years to project into future (default: 0)
-- `--create-plots`: Generate visualization plots
-
-#### Output Files:
-- `*_wave_params.json`: Complete wave function parameters
-- `*_components.csv`: Summary of wave components
-- `*_history.csv`: Parameter values over time
-- `*_projections.csv`: Future parameter projections (if requested)
-- `*_evolution.png`: Parameter evolution plots (if requested)
-- `*_components.png`: Wave component analysis plots (if requested)
-
-#### Example Output:
-```
-Analysis Summary:
---------------------------------------------------
-
-PWW:
-  Trend: -0.000326 per year
-  Dominant period: 8.0 years
-  Total wave amplitude: 0.1821
-  Components: 0 short-term, 1 medium-term, 0 long-term
-
-PWD:
-  Trend: -0.000028 per year
-  Dominant period: 8.0 years
-  Total wave amplitude: 0.0637
-  Components: 1 short-term, 1 medium-term, 0 long-term
-```
-
-### 4.5 Data Filling for Missing Values
-
-Real-world precipitation data often contains missing values due to equipment failures, maintenance periods, or data transmission issues. The PrecipGen PAR tool includes professional-grade data filling capabilities that follow meteorological best practices.
-
-#### Usage:
-
-```sh
-# Basic data filling
-python cli.py fill-data input_data.csv -o filled_data.csv
-
-# Advanced options
-python cli.py fill-data input_data.csv \
-  --max-gap-days 30 \
-  --min-similarity 0.7 \
-  --seasonal-window 15 \
-  --min-years-climatology 10 \
-  -o filled_data.csv
-```
-
-#### Filling Methods:
-
-1. **Linear Interpolation (1-2 day gaps)**
-   - Simple linear interpolation between adjacent values
-   - Most appropriate for very short gaps
-   - Ensures smooth transitions
-
-2. **Climatological Normal (3-7 day gaps)**
-   - Uses seasonal averages from other years
-   - Considers ±15 day window around target date
-   - Preserves seasonal patterns
-
-3. **Analogous Year Method (8+ day gaps)**
-   - Finds meteorologically similar years
-   - Based on seasonal precipitation patterns
-   - Uses correlation analysis for year selection
-
-#### Quality Control:
-
-- Statistical validation of filled values
-- Preservation of seasonal patterns
-- No negative precipitation values
-- Extreme value detection
-- Comprehensive quality report generation
-
-#### Output Files:
-
-- `*_filled.csv`: Data with missing values filled
-- `*_filling_report.json`: Detailed filling statistics and validation
-
-#### Example Output:
-```
-Data Filling Summary:
-Original missing values: 45
-Final missing values: 3
-Values filled: 42
-Success rate: 93.3%
-
-Methods used:
-  Linear Interpolation: 8
-  Climatological Normal: 6  
-  Analogous Year: 4
-```
-
-## 5. Testing
-The `PrecipGen` project includes a suite of tests to verify its functionality. Here are the testing requirements:
-
-To run the tests, use the following command: `python -m unittest discover`
-
-## 6. Contributing
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository.
-2. Create a new branch (git checkout -b feature-branch).
-3. Make your changes.
-4. Commit your changes (git commit -am 'Add new feature').
-5. Push to the branch (git push origin feature-branch).
-6. Create a new Pull Request.
-
-## 7. License
-This project is licensed under the MIT License. See the LICENSE file for details.
-
-## 8. Contact
-For any questions or suggestions, please open an issue or contact the repository owner.
+Perfect for climate researchers, hydrologists, environmental consultants, students, and anyone needing reliable precipitation parameters for stochastic modeling.
