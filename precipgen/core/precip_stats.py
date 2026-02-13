@@ -51,13 +51,6 @@ class PrecipValidator:
         distribution.columns = ['Month', 'Total', 'Probability']
         return distribution
 
-    def calculate_monthly_distribution(self):
-        monthly_totals = self.df.resample('ME').sum()[self.value_col]
-        distribution = monthly_totals.groupby(monthly_totals.index.strftime('%B')).apply(lambda x: x.value_counts(normalize=True))
-        distribution = distribution.reset_index()
-        distribution.columns = ['Month', 'Total', 'Probability']
-        return distribution
-
     def calculate_autocorrelation_ann_precip(self):
         annual_totals = self.df.resample('YE')[self.value_col].sum().values
         

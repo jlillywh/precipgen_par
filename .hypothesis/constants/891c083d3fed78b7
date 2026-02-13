@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\data\ghcn_data.py
+# hypothesis_version: 6.151.6
+
+[-9999, 100, 1000, '%', '%Y-%m-%d', ',', 'DATE', 'DAY', 'Data Coverage', 'ELEMENT', 'End Date', 'GHCN daily data, ', 'Latitude', 'Longitude', 'MONTH', 'PRCP', 'Start Date', 'Station ID', 'Station Name', 'TMAX', 'TMIN', 'VALUE', 'YE', 'YEAR', 'ghcn_stations.log', 'mean', 'no-name', 'r', 'sum', 'w']

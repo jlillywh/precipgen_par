@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\core\long_term_analyzer.py
+# hypothesis_version: 6.151.6
+
+[0.7, 1.0, 100, 'Annual Factor', 'DATE', 'Data', 'Density', 'YE', 'autocorrelation', 'basic_statistics', 'dry_spell_lengths', 'extreme_values', 'g-', 'gamma', 'historical_factors', 'intercept', 'ks_statistic', 'kurtosis', 'log_pearson3', 'lower_extreme', 'max', 'max_dry_spell', 'max_wet_spell', 'mean', 'min', 'normality_test', 'p_value', 'params', 'pearson3', 'r-', 'r_value', 'skew', 'skyblue', 'slope', 'spell_analysis', 'std', 'std_err', 'trend_analysis', 'upper_extreme', 'wet_spell_lengths']

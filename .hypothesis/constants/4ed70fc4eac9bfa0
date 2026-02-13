@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\data\find_ghcn_stations.py
+# hypothesis_version: 6.151.6
+
+[-125, -100, 100, 115, 120, 140, 145, 150, 1900, 2023, 'BEGIN', 'COVERAGE', 'END', 'LAT', 'LONG', 'PRCP', 'Processing stations', 'STATION', 'TMAX', 'TMIN', 'TYPE', '__main__', 'arid', 'ghcn_stations.log', 'lat_range', 'long_range', 'r', 'temperate', 'tropical']

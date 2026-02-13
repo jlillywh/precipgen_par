@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\core\log_config.py
+# hypothesis_version: 6.151.6
+
+[1024, '%Y-%m-%d %H:%M:%S', 'INFO', 'STREAMLIT_CLOUD', 'utf-8']

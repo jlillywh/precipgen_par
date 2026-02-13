@@ -7,13 +7,7 @@ A tool for analyzing historical precipitation data and generating parameters for
 
 ## Quick Start
 
-### Web Interface (Recommended)
-```bash
-streamlit run precipgen-web.py
-```
-Or use the scripts: `scripts/run_streamlit.bat` (Windows) / `scripts/run_streamlit.sh` (Mac/Linux)
 
-See [Streamlit Guide](docs/guides/STREAMLIT_GUIDE.md) for detailed instructions.
 
 ### Interactive Menu
 ```bash
@@ -54,14 +48,7 @@ precipgen_par/
 
 ## Features
 
-- 🌐 **Modern Web Interface** - User-friendly Streamlit GUI (no command line needed!)
-- 🏙️ Smart city search by name or coordinates
-- 📁 Automatic project organization
-- 🔧 Professional data filling using meteorological methods
-- 📊 Advanced analysis: random walk parameters, climate trends, wave analysis
-- 📋 Interactive menu interface for CLI users
-- 🌍 Automated workflow with direct NOAA data download
-- 📈 Built-in visualization and data preview
+
 
 ## What This Tool Does
 

@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\desktop\controllers\__init__.py
+# hypothesis_version: 6.151.6
+
+['AdjustedParameters', 'DataController', 'ProjectController', 'Result', 'SearchCriteria', 'StationMetadata']

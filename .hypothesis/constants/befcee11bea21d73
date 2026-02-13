@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\desktop\controllers\calibration_controller.py
+# hypothesis_version: 6.151.6
+
+[0.0, 0.1, 1.0, 5.0, 10.0, '%Y%m%d_%H%M%S', '.txt', '=', 'ALPHA', 'BETA', 'MONTH', 'PDD', 'PDW', 'PWD', 'PWW', 'alpha', 'beta', 'exports', 'p_dry_dry', 'p_dry_wet', 'p_wet_dry', 'p_wet_wet', 'w']

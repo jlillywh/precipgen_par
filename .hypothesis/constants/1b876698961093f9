@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\core\random_walk_params.py
+# hypothesis_version: 6.151.6
+
+[0.0, 1e-10, 0.2, 0.3, 0.6, 0.7, 0.8, 100, 300, 400, '--', '.csv', 'ALPHA', 'BETA', 'GrandJunction', 'PWD', 'PWW', 'Parameter Values', 'RdBu_r', 'USW00023066_data.csv', 'Year', '__main__', '_sequence.csv', 'alpha', 'analysis_date', 'analysis_type', 'annual', 'annual_only', 'auto', 'b-', 'beta', 'black', 'blue', 'center', 'correlations', 'csv', 'fall', 'green', 'json', 'long_term_mean', 'long_term_means', 'metadata', 'method', 'n_windows', 'o', 'o-', 'orange', 'parameter', 'parameter_sequence', 'records', 'red', 'reversion_rate', 'reversion_rates', 'season', 'seasonal', 'seasonal_analysis', 'seasonal_and_annual', 'seasonal_coverage', 'seasonal_sequences', 'seasons', 'seasons_defined', 'spring', 'summer', 'tests', 'tight', 'volatilities', 'volatility', 'w', 'window_end', 'window_size_years', 'window_start', 'winter', 'year']

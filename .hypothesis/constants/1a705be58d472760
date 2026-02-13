@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\core\precip_stats.py
+# hypothesis_version: 6.151.6
+
+['%B', '2000-01-01', 'April', 'August', 'DATE', 'December', 'February', 'January', 'July', 'June', 'ME', 'March', 'May', 'Month', 'November', 'October', 'PRCP', 'PRCP_max', 'PRCP_mean', 'PRCP_min', 'Probability', 'September', 'Total', 'YE', 'dry_group', 'index', 'is_dry', 'is_wet', 'max', 'mean', 'min', 'wet_group']

@@ -1,0 +1,4 @@
+# file: C:\Users\JasonLillywhite\source\repos\precipgen_par\precipgen\data\gap_analyzer.py
+# hypothesis_version: 6.151.6
+
+[100, '\nSummary Statistics:', '-', '2023-01-01', '2023-01-20', '2023-02-01', '2023-03-01', 'D', 'DATE', 'Test DataFrame:', 'Value', '__main__', 'duration', 'end_date', 'long_gap_count', 'long_gaps', 'max_date', 'min_date', 'notes', 'percent_missing', 'short_gap_count', 'start_date', 'summary_statistics', 'total_days', 'total_days_in_year', 'total_missing_days', 'total_years_analyzed', 'year', 'years_with_no_gaps']

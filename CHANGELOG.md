@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-02-12
+
+### Added
+- Desktop GUI application with tkinter interface
+- Executable packaging support with PyInstaller
+- Code signing scripts and documentation for Windows executables
+- Comprehensive packaging and deployment documentation
+- Calibration verification tests and manual testing scripts
+- Logging configuration module for better debugging
+
+### Changed
+- Enhanced project structure with desktop application components
+- Improved build and deployment workflows
+- Updated documentation with executable testing and certificate guides
+
 ## [1.2.0] - 2026-02-12
 
 ### Changed

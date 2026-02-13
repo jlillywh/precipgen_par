@@ -35,7 +35,24 @@ MANIFEST
 
 # PyInstaller
 *.manifest
-*.spec
+# Keep precipgen.spec but ignore other spec files
+!precipgen.spec
+
+# Code Signing
+# Never commit certificates or private keys!
+*.pfx
+*.p12
+*.cer
+*.crt
+*.key
+*.pem
+codesign.inf
+codesign.csr
+certificate_config.bat
+certificate_config.ps1
+# Keep templates
+!certificate_config.template.bat
+!certificate_config.template.ps1
 
 # OS files
 .DS_Store
@@ -47,6 +64,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.code-workspace
+.kiro/
 
 # Project specific
 params_output.csv
