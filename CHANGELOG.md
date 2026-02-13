@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-02-12
+
+### Fixed
+- Fixed blank parameters display after CSV upload by ensuring precipitation data is stored in app state
+- Fixed threading issue where parameter calculations triggered UI updates from background threads
+- Fixed DataFrame boolean evaluation error in data quality display
+- Compacted parameters table layout with reduced padding and font sizes for better screen fit
+
+### Changed
+- Moved `set_historical_params()` calls to main thread to ensure safe observer notifications
+- Updated `calculate_historical_parameters()` to return params without setting app state (caller responsibility)
+- Added comprehensive debug logging to parameters panel for troubleshooting
+
 ## [1.2.1] - 2026-02-12
 
 ### Added

@@ -9,6 +9,10 @@ import customtkinter as ctk
 from typing import Any, Dict, Optional
 from precipgen.desktop.models.app_state import AppState
 from precipgen.desktop.views.project_panel import ProjectPanel
+from precipgen.desktop.views.search_panel import SearchPanel
+from precipgen.desktop.views.upload_panel import UploadPanel
+from precipgen.desktop.views.parameters_panel import ParametersPanel
+from precipgen.desktop.views.calibration_panel import CalibrationPanel
 
 
 # Configure logging
@@ -72,7 +76,7 @@ class MainWindow(ctk.CTk):
         Configure window layout with panels.
         
         Creates the layout structure with ProjectPanel for folder management
-        and a main content area for future panels.
+        and a tabbed interface for Data and Calibration panels.
         """
         # Configure grid layout (2 rows, 1 column)
         self.grid_rowconfigure(1, weight=1)
@@ -100,19 +104,79 @@ class MainWindow(ctk.CTk):
             )
             self.project_label.grid(row=0, column=0, padx=20, pady=15, sticky="w")
         
-        # Create main content frame
-        self.content_frame = ctk.CTkFrame(self, corner_radius=0)
-        self.content_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
-        self.content_frame.grid_rowconfigure(0, weight=1)
-        self.content_frame.grid_columnconfigure(0, weight=1)
+        # Create tabbed interface for Data and Calibration panels
+        self.tabview = ctk.CTkTabview(self, corner_radius=0)
+        self.tabview.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
         
-        # Placeholder label for content area
-        self.placeholder_label = ctk.CTkLabel(
-            self.content_frame,
-            text="PrecipGen Desktop Application\n\nData and Calibration panels will be added in future phases.",
-            font=ctk.CTkFont(size=16)
-        )
-        self.placeholder_label.grid(row=0, column=0, padx=20, pady=20)
+        # Add tabs for clear workflow
+        self.tabview.add("Search")
+        self.tabview.add("Upload")
+        self.tabview.add("Parameters")
+        self.tabview.add("Calibration")
+        
+        # Create Search panel (station search and download)
+        if 'data_controller' in self.controllers:
+            self.search_panel = SearchPanel(
+                self.tabview.tab("Search"),
+                self.controllers['data_controller'],
+                self.app_state
+            )
+            self.search_panel.pack(fill="both", expand=True)
+        else:
+            search_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Search"),
+                text="Data controller not available",
+                font=ctk.CTkFont(size=16)
+            )
+            search_placeholder.pack(padx=20, pady=20)
+        
+        # Create Upload panel (upload existing CSV files)
+        if 'data_controller' in self.controllers:
+            self.upload_panel = UploadPanel(
+                self.tabview.tab("Upload"),
+                self.controllers['data_controller'],
+                self.app_state
+            )
+            self.upload_panel.pack(fill="both", expand=True)
+        else:
+            upload_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Upload"),
+                text="Data controller not available",
+                font=ctk.CTkFont(size=16)
+            )
+            upload_placeholder.pack(padx=20, pady=20)
+        
+        # Create Parameters panel (view calculated parameters)
+        if 'data_controller' in self.controllers and 'calibration_controller' in self.controllers:
+            self.parameters_panel = ParametersPanel(
+                self.tabview.tab("Parameters"),
+                self.app_state,
+                self.controllers['calibration_controller']
+            )
+            self.parameters_panel.pack(fill="both", expand=True)
+        else:
+            params_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Parameters"),
+                text="Parameters not available",
+                font=ctk.CTkFont(size=16)
+            )
+            params_placeholder.pack(padx=20, pady=20)
+        
+        # Create Calibration panel if controller is available
+        if 'calibration_controller' in self.controllers:
+            self.calibration_panel = CalibrationPanel(
+                self.tabview.tab("Calibration"),
+                self.controllers['calibration_controller'],
+                self.app_state
+            )
+            self.calibration_panel.pack(fill="both", expand=True)
+        else:
+            calibration_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Calibration"),
+                text="Calibration controller not available",
+                font=ctk.CTkFont(size=16)
+            )
+            calibration_placeholder.pack(padx=20, pady=20)
     
     def on_state_change(self, state_key: str, new_value: Any) -> None:
         """

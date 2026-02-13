@@ -36,6 +36,7 @@ if precipgen_data.exists():
 
 # Hidden imports that PyInstaller might miss
 hiddenimports = [
+    'unittest',  # Required by numpy.testing
     'customtkinter',
     'hypothesis',
     'scipy',
@@ -84,7 +85,6 @@ hiddenimports = [
 # Binaries to exclude (reduce size)
 excludes = [
     'tkinter.test',
-    'unittest',
     'test',
     'tests',
     'pytest',

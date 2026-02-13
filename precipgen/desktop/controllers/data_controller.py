@@ -10,7 +10,7 @@ import tempfile
 import shutil
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from dataclasses import dataclass
 from datetime import datetime, date
 import pandas as pd
@@ -23,6 +23,8 @@ from precipgen.data.find_stations import (
     parse_ghcn_inventory
 )
 from precipgen.core import calculate_params
+from precipgen.core.time_series import TimeSeries
+from precipgen.core.random_walk_params import analyze_random_walk_parameters
 
 
 # Configure logging
@@ -69,6 +71,8 @@ class HistoricalParameters:
         calculation_date: Timestamp when parameters were calculated
         source_station: Station ID used for calculation
         date_range: Tuple of (start_date, end_date) for data used
+        volatilities: Dictionary of volatility values for random walk (PWW, PWD, alpha, beta)
+        reversion_rates: Dictionary of reversion rate values for random walk (PWW, PWD, alpha, beta)
     """
     alpha: pd.DataFrame  # Monthly alpha values (12 rows)
     beta: pd.DataFrame  # Monthly beta values (12 rows)
@@ -79,6 +83,8 @@ class HistoricalParameters:
     calculation_date: datetime
     source_station: str
     date_range: Tuple[date, date]
+    volatilities: Optional[Dict[str, float]] = None
+    reversion_rates: Optional[Dict[str, float]] = None
 
 
 @dataclass
@@ -246,6 +252,10 @@ class DataController:
         """
         filtered = df.copy()
         
+        logger.info(f"Starting with {len(filtered)} PRCP records")
+        logger.info(f"Search criteria: lat={criteria.latitude}, lon={criteria.longitude}, "
+                   f"radius={criteria.radius_km}")
+        
         # Filter by geographic location (radius search)
         if criteria.latitude is not None and criteria.longitude is not None and criteria.radius_km is not None:
             filtered = self._filter_by_radius(
@@ -254,14 +264,7 @@ class DataController:
                 criteria.longitude,
                 criteria.radius_km
             )
-        
-        # Filter by start year
-        if criteria.start_year is not None:
-            filtered = filtered[filtered['FIRSTYEAR'] <= criteria.start_year]
-        
-        # Filter by end year
-        if criteria.end_year is not None:
-            filtered = filtered[filtered['LASTYEAR'] >= criteria.end_year]
+            logger.info(f"After radius filter: {len(filtered)} records")
         
         return filtered
     
@@ -313,7 +316,8 @@ class DataController:
         Aggregate station metadata from inventory records.
         
         Groups inventory records by station ID and creates StationMetadata
-        objects with aggregated information.
+        objects with aggregated information. Fetches station names from
+        the GHCN stations metadata file.
         
         Args:
             df: Filtered inventory dataframe
@@ -322,6 +326,9 @@ class DataController:
             List of StationMetadata objects
         """
         stations = []
+        
+        # Fetch station names from GHCN stations file
+        station_names = self._fetch_station_names()
         
         # Group by station ID
         grouped = df.groupby('ID')
@@ -334,10 +341,13 @@ class DataController:
             start_year = int(group['FIRSTYEAR'].min())
             end_year = int(group['LASTYEAR'].max())
             
-            # Create metadata object (name and coverage will be fetched later if needed)
+            # Get station name from metadata, or use ID if not found
+            station_name = station_names.get(station_id, station_id)
+            
+            # Create metadata object
             metadata = StationMetadata(
                 station_id=station_id,
-                name=station_id,  # Will be updated when data is fetched
+                name=station_name,
                 latitude=float(first_record['LATITUDE']),
                 longitude=float(first_record['LONGITUDE']),
                 elevation=None,  # Not available in inventory
@@ -349,6 +359,37 @@ class DataController:
             stations.append(metadata)
         
         return stations
+    
+    def _fetch_station_names(self) -> Dict[str, str]:
+        """
+        Fetch station names from GHCN stations metadata file.
+        
+        Returns:
+            Dictionary mapping station IDs to station names
+        """
+        station_names = {}
+        
+        try:
+            metadata_url = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt"
+            response = requests.get(metadata_url, timeout=30)
+            response.raise_for_status()
+            
+            # Parse the fixed-width format file
+            # Format: ID (11 chars), LAT (9 chars), LON (10 chars), ELEV (7 chars), NAME (rest)
+            for line in response.text.splitlines():
+                if len(line) >= 41:
+                    station_id = line[0:11].strip()
+                    station_name = line[41:].strip()
+                    if station_name:
+                        station_names[station_id] = station_name
+            
+            logger.info(f"Fetched names for {len(station_names)} stations")
+            
+        except Exception as e:
+            logger.warning(f"Could not fetch station names: {e}")
+            # Continue without names - not critical
+        
+        return station_names
 
     
     def download_station_data(
@@ -649,6 +690,27 @@ class DataController:
             if self.app_state.current_station:
                 station_id = self.app_state.current_station.station_id
             
+            # Calculate random walk parameters (volatility and reversion rates)
+            volatilities = None
+            reversion_rates = None
+            try:
+                logger.info("Calculating random walk parameters...")
+                # Create TimeSeries object for random walk analysis
+                ts = TimeSeries()
+                ts.data = calc_data[['PRCP']].copy()
+                
+                # Analyze random walk parameters
+                rw_analyzer = analyze_random_walk_parameters(ts, window_size=2, seasonal_analysis=False)
+                
+                volatilities = rw_analyzer.volatilities
+                reversion_rates = rw_analyzer.reversion_rates
+                
+                logger.info(f"Random walk parameters calculated: "
+                          f"volatilities={volatilities}, reversion_rates={reversion_rates}")
+            except Exception as e:
+                logger.warning(f"Could not calculate random walk parameters: {e}")
+                # Continue without random walk parameters - they're optional
+            
             # Create HistoricalParameters object
             historical_params = HistoricalParameters(
                 alpha=alpha_series.to_frame(name='ALPHA'),
@@ -659,11 +721,14 @@ class DataController:
                 p_dry_dry=pdd_series.to_frame(name='PDD'),
                 calculation_date=datetime.now(),
                 source_station=station_id,
-                date_range=(start_date, end_date)
+                date_range=(start_date, end_date),
+                volatilities=volatilities,
+                reversion_rates=reversion_rates
             )
             
-            # Store in AppState (Requirements 4.1)
-            self.app_state.set_historical_params(historical_params)
+            # Note: We don't set historical_params in app_state here because this may be
+            # called from a background thread. The caller should set it on the main thread
+            # to ensure observer notifications happen safely for UI updates.
             
             # Save to project folder (Requirements 4.5)
             if self.app_state.has_project_folder():

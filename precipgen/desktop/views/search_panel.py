@@ -1,8 +1,7 @@
 """
-Data panel view component for PrecipGen Desktop.
+Search panel view component for PrecipGen Desktop.
 
-This module provides the UI for GHCN data search, results display,
-and data download with progress indication.
+This module provides the UI for GHCN station search and data download.
 """
 
 import logging
@@ -23,11 +22,11 @@ from precipgen.desktop.models.app_state import AppState
 logger = logging.getLogger(__name__)
 
 
-class DataPanel(ctk.CTkFrame):
+class SearchPanel(ctk.CTkFrame):
     """
-    UI component for GHCN data search and download.
+    UI component for GHCN station search and data download.
     
-    Provides search interface with input fields for location and date range,
+    Provides search interface with input fields for location,
     displays search results with station metadata, and handles data download
     with progress indication.
     
@@ -42,10 +41,10 @@ class DataPanel(ctk.CTkFrame):
     
     def __init__(self, parent, data_controller: DataController, app_state: AppState):
         """
-        Initialize DataPanel.
+        Initialize SearchPanel.
         
         Args:
-            parent: Parent widget (typically MainWindow content area)
+            parent: Parent widget (typically MainWindow tab)
             data_controller: DataController instance for data operations
             app_state: AppState instance for observing state changes
         """
@@ -58,6 +57,9 @@ class DataPanel(ctk.CTkFrame):
         self.search_results: List[StationMetadata] = []
         self.selected_station: Optional[StationMetadata] = None
         
+        # Radio button variable for station selection
+        self.selected_station_var = ctk.StringVar(value="")
+        
         # Setup the panel layout
         self.setup_ui()
         
@@ -69,7 +71,7 @@ class DataPanel(ctk.CTkFrame):
         Configure the panel layout and widgets.
         
         Creates a vertical layout with search interface at top,
-        results display in middle, download controls, and parameter display at bottom.
+        results display in middle, and download controls at bottom.
         """
         # Configure grid layout - results frame should expand
         self.grid_rowconfigure(2, weight=1)  # Results frame expands
@@ -94,10 +96,6 @@ class DataPanel(ctk.CTkFrame):
         # Download controls frame
         self.download_frame = self.create_download_frame()
         self.download_frame.grid(row=3, column=0, padx=20, pady=(10, 20), sticky="ew")
-        
-        # Historical parameters display frame
-        self.params_frame = self.create_params_frame()
-        self.params_frame.grid(row=4, column=0, padx=20, pady=(10, 20), sticky="ew")
     
     def create_search_frame(self) -> ctk.CTkFrame:
         """
@@ -149,7 +147,7 @@ class DataPanel(ctk.CTkFrame):
         
         row += 1
         
-        # Search progress indicator (Requirement 11.5)
+        # Search progress indicator
         self.search_progress = ctk.CTkProgressBar(frame)
         self.search_progress.grid(row=row, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
         self.search_progress.set(0)
@@ -217,41 +215,6 @@ class DataPanel(ctk.CTkFrame):
         
         return frame
     
-    def create_params_frame(self) -> ctk.CTkFrame:
-        """
-        Create historical parameters display area.
-        
-        Returns:
-            Frame for displaying calculated historical parameters
-        """
-        frame = ctk.CTkFrame(self)
-        frame.grid_columnconfigure(0, weight=1)
-        
-        # Title label
-        params_title = ctk.CTkLabel(
-            frame,
-            text="Historical Parameters",
-            font=ctk.CTkFont(size=16, weight="bold")
-        )
-        params_title.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
-        
-        # Status label (shown when no parameters calculated)
-        self.params_status_label = ctk.CTkLabel(
-            frame,
-            text="Parameters will appear here after downloading and analyzing station data",
-            font=ctk.CTkFont(size=12),
-            text_color="gray"
-        )
-        self.params_status_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        
-        # Scrollable frame for parameter values (hidden initially)
-        self.params_scrollable = ctk.CTkScrollableFrame(frame, height=200)
-        self.params_scrollable.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
-        self.params_scrollable.grid_columnconfigure(0, weight=1)
-        self.params_scrollable.grid_remove()  # Hide initially
-        
-        return frame
-    
     def on_search_clicked(self) -> None:
         """
         Handle search button click.
@@ -269,7 +232,7 @@ class DataPanel(ctk.CTkFrame):
         # Disable search button during search
         self.search_button.configure(state="disabled", text="Searching...")
         
-        # Show indeterminate progress indicator (Requirement 11.5)
+        # Show indeterminate progress indicator
         self.search_progress.grid()
         self.search_progress.configure(mode="indeterminate")
         self.search_progress.start()
@@ -387,7 +350,7 @@ class DataPanel(ctk.CTkFrame):
     
     def create_station_card(self, station: StationMetadata, index: int) -> None:
         """
-        Create a card displaying station metadata.
+        Create a card displaying station metadata with radio button selection.
         
         Args:
             station: StationMetadata to display
@@ -396,11 +359,21 @@ class DataPanel(ctk.CTkFrame):
         # Create frame for station card with horizontal layout
         card = ctk.CTkFrame(self.results_scrollable)
         card.grid(row=index, column=0, padx=5, pady=3, sticky="ew")
-        card.grid_columnconfigure(0, weight=1)
+        card.grid_columnconfigure(1, weight=1)
+        
+        # Radio button for selection (left side)
+        radio_button = ctk.CTkRadioButton(
+            card,
+            text="",
+            variable=self.selected_station_var,
+            value=station.station_id,
+            command=lambda: self.on_station_selected(station)
+        )
+        radio_button.grid(row=0, column=0, padx=(10, 5), pady=8)
         
         # Create horizontal layout for all info
         info_frame = ctk.CTkFrame(card, fg_color="transparent")
-        info_frame.grid(row=0, column=0, padx=10, pady=8, sticky="ew")
+        info_frame.grid(row=0, column=1, padx=5, pady=8, sticky="ew")
         info_frame.grid_columnconfigure(0, weight=0)  # Station ID
         info_frame.grid_columnconfigure(1, weight=0)  # Separator
         info_frame.grid_columnconfigure(2, weight=0)  # Location
@@ -408,10 +381,14 @@ class DataPanel(ctk.CTkFrame):
         info_frame.grid_columnconfigure(4, weight=0)  # Data range
         info_frame.grid_columnconfigure(5, weight=1)  # Spacer
         
-        # Station ID (bold)
+        # Station ID and Name (bold)
+        id_name_text = f"{station.station_id}"
+        if station.name and station.name != station.station_id:
+            id_name_text += f" - {station.name}"
+        
         id_label = ctk.CTkLabel(
             info_frame,
-            text=station.station_id,
+            text=id_name_text,
             font=ctk.CTkFont(size=12, weight="bold"),
             anchor="w"
         )
@@ -447,20 +424,10 @@ class DataPanel(ctk.CTkFrame):
             anchor="w"
         )
         availability_label.grid(row=0, column=4, padx=(0, 10), sticky="w")
-        
-        # Select button (right-aligned)
-        select_button = ctk.CTkButton(
-            card,
-            text="Select",
-            width=80,
-            height=28,
-            command=lambda s=station: self.on_station_selected(s)
-        )
-        select_button.grid(row=0, column=1, padx=10, pady=8)
     
     def on_station_selected(self, station: StationMetadata) -> None:
         """
-        Handle station selection.
+        Handle station selection via radio button.
         
         Args:
             station: Selected StationMetadata
@@ -468,12 +435,7 @@ class DataPanel(ctk.CTkFrame):
         self.selected_station = station
         self.download_button.configure(state="normal")
         
-        # Show selection feedback
-        messagebox.showinfo(
-            "Station Selected",
-            f"Selected station: {station.station_id}\n\n"
-            f"Click 'Download Station Data' to retrieve precipitation data."
-        )
+        logger.info(f"Station selected: {station.station_id}")
     
     def on_download_clicked(self) -> None:
         """
@@ -497,8 +459,8 @@ class DataPanel(ctk.CTkFrame):
         # Disable download button during download
         self.download_button.configure(state="disabled")
         
-        # Reset and configure progress bar for determinate mode (Requirement 11.5)
-        self.progress_bar.stop()  # Stop any previous indeterminate animation
+        # Reset and configure progress bar for determinate mode
+        self.progress_bar.stop()
         self.progress_bar.configure(mode="determinate")
         self.progress_bar.set(0)
         self.progress_label.configure(text="Starting download...")
@@ -547,7 +509,7 @@ class DataPanel(ctk.CTkFrame):
             return
         
         # Success - now calculate historical parameters
-        # Show indeterminate progress for calculation (Requirement 11.5)
+        # Show indeterminate progress for calculation
         self.progress_label.configure(text="Calculating parameters...")
         self.progress_bar.configure(mode="indeterminate")
         self.progress_bar.start()
@@ -596,7 +558,7 @@ class DataPanel(ctk.CTkFrame):
         messagebox.showinfo(
             "Download Complete",
             f"Successfully downloaded and analyzed data for station {self.selected_station.station_id}\n\n"
-            f"Historical parameters have been calculated and are displayed below."
+            f"View the calculated parameters in the 'Parameters' tab."
         )
     
     def on_state_change(self, state_key: str, new_value) -> None:
@@ -607,183 +569,8 @@ class DataPanel(ctk.CTkFrame):
             state_key: Name of the state property that changed
             new_value: New value of the state property
         """
-        # Update parameter display when historical parameters are calculated
-        if state_key == 'historical_params' and new_value is not None:
-            self.display_historical_parameters(new_value)
-    
-    def display_historical_parameters(self, params) -> None:
-        """
-        Display calculated historical parameters.
-        
-        Shows P(W|W), P(W|D), α, and β in a formatted table.
-        Updates the UI to show parameter values when they are calculated.
-        
-        Args:
-            params: HistoricalParameters object with calculated values
-        """
-        # Hide status label and show scrollable frame
-        self.params_status_label.grid_remove()
-        self.params_scrollable.grid()
-        
-        # Clear previous parameter display
-        for widget in self.params_scrollable.winfo_children():
-            widget.destroy()
-        
-        # Create header row
-        header_frame = ctk.CTkFrame(self.params_scrollable)
-        header_frame.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-        header_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
-        
-        headers = ["Month", "P(W|W)", "P(W|D)", "α (Alpha)", "β (Beta)"]
-        for col, header in enumerate(headers):
-            label = ctk.CTkLabel(
-                header_frame,
-                text=header,
-                font=ctk.CTkFont(size=12, weight="bold")
-            )
-            label.grid(row=0, column=col, padx=5, pady=5)
-        
-        # Month names
-        month_names = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-        ]
-        
-        # Display parameter values for each month
-        for month_idx in range(12):
-            row_frame = ctk.CTkFrame(self.params_scrollable)
-            row_frame.grid(row=month_idx + 1, column=0, padx=5, pady=2, sticky="ew")
-            row_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
-            
-            # Month name
-            month_label = ctk.CTkLabel(
-                row_frame,
-                text=month_names[month_idx],
-                font=ctk.CTkFont(size=11)
-            )
-            month_label.grid(row=0, column=0, padx=5, pady=3)
-            
-            # Extract values for this month (month_idx is 0-based, but DataFrame index is 1-based)
-            month_num = month_idx + 1
-            
-            # P(W|W)
-            pww_val = params.p_wet_wet.loc[month_num, 'PWW'] if month_num in params.p_wet_wet.index else 0.0
-            pww_label = ctk.CTkLabel(
-                row_frame,
-                text=f"{pww_val:.3f}",
-                font=ctk.CTkFont(size=11)
-            )
-            pww_label.grid(row=0, column=1, padx=5, pady=3)
-            
-            # P(W|D)
-            pwd_val = params.p_wet_dry.loc[month_num, 'PWD'] if month_num in params.p_wet_dry.index else 0.0
-            pwd_label = ctk.CTkLabel(
-                row_frame,
-                text=f"{pwd_val:.3f}",
-                font=ctk.CTkFont(size=11)
-            )
-            pwd_label.grid(row=0, column=2, padx=5, pady=3)
-            
-            # Alpha
-            alpha_val = params.alpha.loc[month_num, 'ALPHA'] if month_num in params.alpha.index else 0.0
-            alpha_label = ctk.CTkLabel(
-                row_frame,
-                text=f"{alpha_val:.3f}",
-                font=ctk.CTkFont(size=11)
-            )
-            alpha_label.grid(row=0, column=3, padx=5, pady=3)
-            
-            # Beta
-            beta_val = params.beta.loc[month_num, 'BETA'] if month_num in params.beta.index else 0.0
-            beta_label = ctk.CTkLabel(
-                row_frame,
-                text=f"{beta_val:.3f}",
-                font=ctk.CTkFont(size=11)
-            )
-            beta_label.grid(row=0, column=4, padx=5, pady=3)
-        
-        # Add metadata display
-        metadata_frame = ctk.CTkFrame(self.params_scrollable)
-        metadata_frame.grid(row=13, column=0, padx=5, pady=(10, 5), sticky="ew")
-        
-        metadata_text = (
-            f"Station: {params.source_station} | "
-            f"Data Range: {params.date_range[0]} to {params.date_range[1]} | "
-            f"Calculated: {params.calculation_date.strftime('%Y-%m-%d %H:%M')}"
-        )
-        
-        metadata_label = ctk.CTkLabel(
-            metadata_frame,
-            text=metadata_text,
-            font=ctk.CTkFont(size=10),
-            text_color="gray"
-        )
-        metadata_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        
-        # Add random walk parameters display (if available)
-        if params.volatilities and params.reversion_rates:
-            # Title for random walk section
-            rw_title_frame = ctk.CTkFrame(self.params_scrollable)
-            rw_title_frame.grid(row=14, column=0, padx=5, pady=(15, 5), sticky="ew")
-            
-            rw_title = ctk.CTkLabel(
-                rw_title_frame,
-                text="Random Walk Parameters (Annual)",
-                font=ctk.CTkFont(size=14, weight="bold")
-            )
-            rw_title.grid(row=0, column=0, padx=10, pady=5, sticky="w")
-            
-            # Create table for random walk parameters
-            rw_table_frame = ctk.CTkFrame(self.params_scrollable)
-            rw_table_frame.grid(row=15, column=0, padx=5, pady=5, sticky="ew")
-            rw_table_frame.grid_columnconfigure((0, 1, 2), weight=1)
-            
-            # Headers
-            headers = ["Parameter", "Volatility (σ)", "Reversion Rate (r)"]
-            for col, header in enumerate(headers):
-                label = ctk.CTkLabel(
-                    rw_table_frame,
-                    text=header,
-                    font=ctk.CTkFont(size=12, weight="bold")
-                )
-                label.grid(row=0, column=col, padx=10, pady=5)
-            
-            # Display values for each parameter
-            param_names = {
-                'PWW': 'P(W|W)',
-                'PWD': 'P(W|D)',
-                'alpha': 'α (Alpha)',
-                'beta': 'β (Beta)'
-            }
-            
-            row_idx = 1
-            for param_key, param_display in param_names.items():
-                if param_key in params.volatilities and param_key in params.reversion_rates:
-                    # Parameter name
-                    name_label = ctk.CTkLabel(
-                        rw_table_frame,
-                        text=param_display,
-                        font=ctk.CTkFont(size=11)
-                    )
-                    name_label.grid(row=row_idx, column=0, padx=10, pady=3)
-                    
-                    # Volatility
-                    vol_label = ctk.CTkLabel(
-                        rw_table_frame,
-                        text=f"{params.volatilities[param_key]:.6f}",
-                        font=ctk.CTkFont(size=11)
-                    )
-                    vol_label.grid(row=row_idx, column=1, padx=10, pady=3)
-                    
-                    # Reversion rate
-                    rev_label = ctk.CTkLabel(
-                        rw_table_frame,
-                        text=f"{params.reversion_rates[param_key]:.6f}",
-                        font=ctk.CTkFont(size=11)
-                    )
-                    rev_label.grid(row=row_idx, column=2, padx=10, pady=3)
-                    
-                    row_idx += 1
+        # No specific state changes to handle in search panel
+        pass
     
     def destroy(self) -> None:
         """

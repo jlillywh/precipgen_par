@@ -85,7 +85,14 @@ class GHCNData:
         df = pd.DataFrame(data, columns=["YEAR", "MONTH", "DAY", "ELEMENT", "VALUE"])
         df["DATE"] = pd.to_datetime(df[["YEAR", "MONTH", "DAY"]])
         df = df.pivot(index="DATE", columns="ELEMENT", values="VALUE").reset_index()
-        df = df[['DATE', 'PRCP', 'TMAX', 'TMIN']]  # Select only the columns we want
+        
+        # Only select columns that actually exist in the data
+        available_columns = ['DATE']
+        for col in ['PRCP', 'TMAX', 'TMIN']:
+            if col in df.columns:
+                available_columns.append(col)
+        
+        df = df[available_columns]
         return df
 
     def _handle_outliers(self):
@@ -93,12 +100,15 @@ class GHCNData:
         if self.data is None:
             return
 
-        # Convert temperatures from tenths of degrees Celsius to Celsius
-        self.data['TMAX'] = self.data['TMAX'] / 10
-        self.data['TMIN'] = self.data['TMIN'] / 10
+        # Convert precipitation from tenths of mm to mm (always present)
+        if 'PRCP' in self.data.columns:
+            self.data['PRCP'] = self.data['PRCP'] / 10
 
-        # Convert precipitation from tenths of mm to mm
-        self.data['PRCP'] = self.data['PRCP'] / 10
+        # Convert temperatures from tenths of degrees Celsius to Celsius (if present)
+        if 'TMAX' in self.data.columns:
+            self.data['TMAX'] = self.data['TMAX'] / 10
+        if 'TMIN' in self.data.columns:
+            self.data['TMIN'] = self.data['TMIN'] / 10
 
         # Define reasonable limits for each variable
         limits = {
@@ -108,6 +118,10 @@ class GHCNData:
         }
 
         for column, (low, high) in limits.items():
+            # Only process columns that exist in the data
+            if column not in self.data.columns:
+                continue
+                
             # Identify outliers
             outliers = self.data[(self.data[column] < low) | (self.data[column] > high)]
             if not outliers.empty:
@@ -149,15 +163,28 @@ class GHCNData:
         print(f"Start Date: {self.start_date}, End Date: {self.end_date}")
         print(f"Data Coverage: {self.coverage:.2f}%")
 
-        yearly_data = self.data.set_index('DATE').resample('YE').agg({
-            'PRCP': 'sum',
-            'TMAX': 'mean',
-            'TMIN': 'mean'
-        })
+        # Build aggregation dict based on available columns
+        agg_dict = {}
+        if 'PRCP' in self.data.columns:
+            agg_dict['PRCP'] = 'sum'
+        if 'TMAX' in self.data.columns:
+            agg_dict['TMAX'] = 'mean'
+        if 'TMIN' in self.data.columns:
+            agg_dict['TMIN'] = 'mean'
+        
+        if not agg_dict:
+            print("No data columns available for summary.")
+            return
+            
+        yearly_data = self.data.set_index('DATE').resample('YE').agg(agg_dict)
         summary = yearly_data.mean()
-        print(f"Average Annual Total Rainfall: {summary['PRCP']:.2f} mm")
-        print(f"Average Annual Tmax: {summary['TMAX']:.2f}°C")
-        print(f"Average Annual Tmin: {summary['TMIN']:.2f}°C")
+        
+        if 'PRCP' in summary:
+            print(f"Average Annual Total Rainfall: {summary['PRCP']:.2f} mm")
+        if 'TMAX' in summary:
+            print(f"Average Annual Tmax: {summary['TMAX']:.2f}°C")
+        if 'TMIN' in summary:
+            print(f"Average Annual Tmin: {summary['TMIN']:.2f}°C")
 
     def print_first_rows(self, rows=4):
         """Print the first few lines to the screen."""
@@ -224,8 +251,11 @@ class GHCNData:
         # Calculate the total number of days in the data range
         total_days = (self.data['DATE'].max() - self.data['DATE'].min()).days + 1
         
-        # Calculate the completeness for each data element
-        elements = ['PRCP', 'TMAX', 'TMIN']
+        # Calculate the completeness for each data element that exists
+        elements = [col for col in ['PRCP', 'TMAX', 'TMIN'] if col in self.data.columns]
+        if not elements:
+            return 0
+            
         completeness = {element: self.data[element].notna().sum() / total_days for element in elements}
         
         # Find the maximum completeness among the elements

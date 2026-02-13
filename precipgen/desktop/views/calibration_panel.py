@@ -10,6 +10,7 @@ import logging
 import customtkinter as ctk
 from typing import Dict, Optional
 from tkinter import messagebox
+import threading
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
