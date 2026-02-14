@@ -48,6 +48,9 @@ class SessionConfig:
             self.config_path = config_path
             
         self.project_folder: Optional[Path] = None
+        self.recent_projects: list[str] = []
+        self.selected_dataset_file: Optional[str] = None
+        self.dataset_metadata: Dict[str, Any] = {}
         self.window_geometry: Dict[str, int] = {
             'width': 1200,
             'height': 800,
@@ -83,6 +86,18 @@ class SessionConfig:
             if 'project_folder' in data and data['project_folder']:
                 config.project_folder = Path(data['project_folder'])
             
+            # Load recent projects if present
+            if 'recent_projects' in data:
+                config.recent_projects = data['recent_projects']
+                
+            # Load selected dataset file if present
+            if 'selected_dataset_file' in data:
+                config.selected_dataset_file = data['selected_dataset_file']
+
+            # Load dataset metadata if present
+            if 'dataset_metadata' in data:
+                config.dataset_metadata = data['dataset_metadata']
+
             # Load window geometry if present
             if 'window_geometry' in data:
                 config.window_geometry.update(data['window_geometry'])
@@ -103,7 +118,7 @@ class SessionConfig:
         """
         Persist configuration to disk.
         
-        Saves current project folder, window geometry, and timestamp
+        Saves current project folder, recent projects, window geometry, and timestamp
         to the configuration file in JSON format.
         
         Raises:
@@ -114,12 +129,40 @@ class SessionConfig:
         
         data = {
             'project_folder': str(self.project_folder) if self.project_folder else None,
+            'recent_projects': self.recent_projects,
+            'selected_dataset_file': self.selected_dataset_file,
+            'dataset_metadata': self.dataset_metadata,
             'window_geometry': self.window_geometry,
             'last_used': datetime.now().isoformat()
         }
         
         with open(self.config_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
+
+    def add_recent_project(self, path: Path) -> None:
+        """
+        Add a project path to the list of recent projects.
+        
+        Moves the path to the top if it already exists.
+        Limits the list to the 5 most recent projects.
+        
+        Args:
+            path: Path to the project folder
+        """
+        path_str = str(path)
+        
+        # Remove if already exists (to move to top)
+        if path_str in self.recent_projects:
+            self.recent_projects.remove(path_str)
+            
+        # Add to top
+        self.recent_projects.insert(0, path_str)
+        
+        # Limit to 5
+        self.recent_projects = self.recent_projects[:5]
+        
+        # Auto-save
+        self.save()
     
     def validate_project_folder(self) -> bool:
         """

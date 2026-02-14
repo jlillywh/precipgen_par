@@ -7,14 +7,61 @@ import random
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def fetch_ghcn_inventory():
+import os
+import time
+from pathlib import Path
+
+def fetch_ghcn_inventory(cache_path=None, max_age_hours=24):
     url = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-inventory.txt"
+    
+    # Check cache first
+    if cache_path:
+        cache_file = Path(cache_path)
+        if cache_file.exists():
+            # Check file age
+            file_age_hours = (time.time() - cache_file.stat().st_mtime) / 3600
+            if file_age_hours < max_age_hours:
+                logging.info(f"Loading inventory from cache ({file_age_hours:.1f} hours old)")
+                try:
+                    with open(cache_file, 'r') as f:
+                        return f.read()
+                except Exception as e:
+                    logging.warning(f"Failed to read cache file: {e}")
+            else:
+                logging.info(f"Cache expired ({file_age_hours:.1f} hours old), re-downloading...")
+    
+    # Download from URL
     try:
+        logging.info("Downloading inventory from NOAA...")
         response = requests.get(url)
         response.raise_for_status()
-        return response.text
+        data = response.text
+        
+        # Save to cache if path provided
+        if cache_path and data:
+            try:
+                cache_file = Path(cache_path)
+                cache_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(cache_file, 'w') as f:
+                    f.write(data)
+                logging.info(f"Inventory cached to {cache_path}")
+            except Exception as e:
+                logging.warning(f"Failed to write cache file: {e}")
+        
+        return data
+        
     except requests.RequestException as e:
         logging.error(f"Error fetching inventory data: {e}")
+        
+        # Fallback to expired cache if available and network failed
+        if cache_path and Path(cache_path).exists():
+            logging.warning("Network error, falling back to expired cache")
+            try:
+                with open(cache_path, 'r') as f:
+                    return f.read()
+            except:
+                pass
+                
         return None
 
 def parse_ghcn_inventory(raw_data):

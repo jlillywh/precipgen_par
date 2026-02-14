@@ -2,18 +2,74 @@ import pandas as pd
 import numpy as np
 from scipy.stats import linregress
 
-def calculate_params(precip_ts):
+
+def filter_complete_years(precip_ts, min_days_threshold=0.9):
+    """
+    Filter precipitation time series to include only complete years.
+    
+    A year is considered complete if it has at least min_days_threshold (default 90%)
+    of expected days with data (not necessarily wet, but present in the dataset).
+    
+    Parameters:
+    precip_ts : pd.DataFrame
+        Time series DataFrame with DatetimeIndex and 'PRCP' column
+    min_days_threshold : float
+        Minimum fraction of days required (0.0 to 1.0). Default 0.9 (90%)
+        
+    Returns:
+    filtered_ts : pd.DataFrame
+        Time series containing only complete years
+    """
+    if precip_ts.empty:
+        return precip_ts
+    
+    # Group by year and count days
+    yearly_counts = precip_ts.groupby(precip_ts.index.year).size()
+    
+    # Determine expected days for each year (365 or 366 for leap years)
+    def expected_days(year):
+        return 366 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 365
+    
+    # Find complete years
+    complete_years = []
+    for year, count in yearly_counts.items():
+        expected = expected_days(year)
+        if count >= (expected * min_days_threshold):
+            complete_years.append(year)
+    
+    if not complete_years:
+        # No complete years found - return empty DataFrame
+        return pd.DataFrame(columns=precip_ts.columns)
+    
+    # Filter to only complete years
+    filtered_ts = precip_ts[precip_ts.index.year.isin(complete_years)]
+    
+    return filtered_ts
+
+
+def calculate_params(precip_ts, filter_incomplete_years=True, min_completeness=0.9):
     """
     Calculate pww, pwd, alpha, and beta parameters for each month from a historical precipitation time series.
     
     Parameters:
     precip_ts : pd.DataFrame
         Time series DataFrame with 'DATE' as the index and 'PRCP' as the precipitation column.
+    filter_incomplete_years : bool
+        If True, filter out incomplete years before calculation (default: True)
+    min_completeness : float
+        Minimum fraction of days required for a year to be considered complete (default: 0.9)
         
     Returns:
     params : pd.DataFrame
         DataFrame of calculated parameters for each month.
     """
+    
+    # Filter for complete years if requested
+    if filter_incomplete_years:
+        precip_ts = filter_complete_years(precip_ts, min_completeness)
+        if precip_ts.empty:
+            raise ValueError("No complete years found in the data. "
+                           "Try lowering min_completeness threshold or use filter_incomplete_years=False")
     
     # Initialize counters and arrays for monthly statistics
     sum_precip = np.zeros(12)

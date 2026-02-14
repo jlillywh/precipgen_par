@@ -281,14 +281,10 @@ class TestProjectController(unittest.TestCase):
             
             controller.initialize_project_structure(project_path)
             
-            # Check that subdirectories were created
-            assert (project_path / "data").exists()
-            assert (project_path / "params").exists()
-            assert (project_path / "exports").exists()
-            
-            assert (project_path / "data").is_dir()
-            assert (project_path / "params").is_dir()
-            assert (project_path / "exports").is_dir()
+            # Check that subdirectories were NOT created (flat structure)
+            assert not (project_path / "data").exists()
+            assert not (project_path / "params").exists()
+            assert not (project_path / "exports").exists()
 
 
 if __name__ == '__main__':
@@ -433,17 +429,16 @@ class TestProjectFolderPersistenceProperty(unittest.TestCase):
                 'PRCP': [0.5] * len(dates)  # Simple mock data
             })
             
-            # Simulate data storage by manually saving to project folder
-            # (since we can't actually download from GHCN in a test)
-            project_data_dir = project_folder / 'data'
-            project_data_dir.mkdir(parents=True, exist_ok=True)
+            # Simulate data storage by manually saving to project folder (flat structure)
+            # project_data_dir = project_folder / 'data'
+            # project_data_dir.mkdir(parents=True, exist_ok=True)
             
-            data_file = project_data_dir / f"{station_id}_data.csv"
+            data_file = project_folder / f"{station_id}_data.csv"
             mock_data.to_csv(data_file, index=False)
             
             # Verify file is in project folder, not temp directory
             assert data_file.exists(), "Data file should exist in project folder"
-            assert data_file.parent == project_data_dir, "Data file should be in project data directory"
+            assert data_file.parent == project_folder, "Data file should be directly in project folder"
             
             # Verify file is NOT in system temp directory (check for our specific file pattern)
             temp_dir = Path(tempfile.gettempdir())
@@ -461,10 +456,10 @@ class TestProjectFolderPersistenceProperty(unittest.TestCase):
             assert data_file.is_relative_to(project_folder), "Data file path should be under project folder"
             
             # Additional check: simulate parameter storage
-            params_dir = project_folder / 'params'
-            params_dir.mkdir(parents=True, exist_ok=True)
+            # params_dir = project_folder / 'params'
+            # params_dir.mkdir(parents=True, exist_ok=True)
             
-            params_file = params_dir / f"{station_id}_params.json"
+            params_file = project_folder / f"{station_id}_params.json"
             params_data = {
                 'alpha': 1.23,
                 'beta': 0.87,
@@ -477,7 +472,7 @@ class TestProjectFolderPersistenceProperty(unittest.TestCase):
             
             # Verify params file is in project folder
             assert params_file.exists(), "Params file should exist in project folder"
-            assert params_file.parent == params_dir, "Params file should be in project params directory"
+            assert params_file.parent == project_folder, "Params file should be directly in project folder"
             assert params_file.is_relative_to(project_folder), "Params file path should be under project folder"
             
             # Verify params file is NOT in temp directory (check for our specific file pattern)

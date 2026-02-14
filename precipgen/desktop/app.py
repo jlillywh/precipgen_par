@@ -58,6 +58,10 @@ class DesktopApp:
             
             # Initialize controllers
             self.project_controller = ProjectController(self.app_state, self.session_config)
+            
+            # Link project controller to app state for cross-controller access
+            self.app_state.project_controller = self.project_controller
+            
             self.data_controller = DataController(self.app_state)
             self.analysis_controller = AnalysisController(self.app_state)
             

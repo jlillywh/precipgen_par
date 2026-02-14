@@ -94,7 +94,7 @@ class MainWindow(ctk.CTk):
         # Add tabs in workflow order
         self.tabview.add("Home")
         self.tabview.add("Search")
-        self.tabview.add("Upload")
+        self.tabview.add("Data")
         self.tabview.add("Basic Analysis")
         self.tabview.add("Markov Analysis")
         self.tabview.add("Trend Analysis")
@@ -131,21 +131,21 @@ class MainWindow(ctk.CTk):
             )
             search_placeholder.pack(padx=20, pady=20)
         
-        # Create Upload panel (upload existing CSV files)
+        # Create Data panel (manage dataset metadata and upload files)
         if 'data_controller' in self.controllers:
-            self.upload_panel = UploadPanel(
-                self.tabview.tab("Upload"),
+            self.data_panel = UploadPanel(
+                self.tabview.tab("Data"),
                 self.controllers['data_controller'],
                 self.app_state
             )
-            self.upload_panel.pack(fill="both", expand=True)
+            self.data_panel.pack(fill="both", expand=True)
         else:
-            upload_placeholder = ctk.CTkLabel(
-                self.tabview.tab("Upload"),
+            data_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Data"),
                 text="Data controller not available",
                 font=ctk.CTkFont(size=16)
             )
-            upload_placeholder.pack(padx=20, pady=20)
+            data_placeholder.pack(padx=20, pady=20)
         
         # Create Basic Analysis panel
         if 'analysis_controller' in self.controllers:
@@ -223,7 +223,8 @@ class MainWindow(ctk.CTk):
         has_project = self.app_state.project_folder is not None
         
         # Get all tab names
-        tab_names = ["Home", "Search", "Upload", "Basic Analysis", "Markov Analysis", "Trend Analysis"]
+        # Get all tab names
+        tab_names = ["Home", "Search", "Data", "Basic Analysis", "Markov Analysis", "Trend Analysis"]
         
         # Enable/disable tabs based on project folder state
         for tab_name in tab_names:

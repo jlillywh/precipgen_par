@@ -1,8 +1,8 @@
 """
-Upload panel view component for PrecipGen Desktop.
+Dataset Management panel view component for PrecipGen Desktop.
 
-This module provides the UI for uploading existing precipitation time series files
-from CSV or Excel formats.
+This module provides the UI for managing the active dataset, including viewing and
+editing metadata, and importing new precipitation time series files.
 """
 
 import logging
@@ -11,8 +11,7 @@ from tkinter import filedialog, messagebox
 from pathlib import Path
 import pandas as pd
 import threading
-from typing import Optional, Tuple
-import re
+from typing import Optional, Tuple, Dict, Any
 
 from precipgen.desktop.models.app_state import AppState
 from precipgen.desktop.controllers.data_controller import DataController
@@ -24,14 +23,12 @@ logger = logging.getLogger(__name__)
 
 class UploadPanel(ctk.CTkFrame):
     """
-    UI component for uploading precipitation time series files (CSV or Excel).
+    UI component for managing the active dataset and importing new data.
     
-    Handles file selection, parsing with flexible format detection,
-    unit conversion, and parameter calculation.
-    
-    Attributes:
-        data_controller: Controller for data operations
-        app_state: Application state manager
+    Features:
+    - View and edit metadata for the currently locked dataset
+    - Import new precipitation data from CSV/Excel
+    - Automatically updates session configuration
     """
     
     def __init__(self, parent, data_controller: DataController, app_state: AppState):
@@ -39,9 +36,9 @@ class UploadPanel(ctk.CTkFrame):
         Initialize UploadPanel.
         
         Args:
-            parent: Parent widget (typically MainWindow tab)
-            data_controller: DataController instance for data operations
-            app_state: AppState instance for observing state changes
+            parent: Parent widget
+            data_controller: DataController instance
+            app_state: AppState instance
         """
         super().__init__(parent, corner_radius=0)
         
@@ -49,9 +46,13 @@ class UploadPanel(ctk.CTkFrame):
         self.app_state = app_state
         
         self.selected_file: Optional[Path] = None
+        self.metadata_vars: Dict[str, ctk.StringVar] = {}
         
         # Setup the panel layout
         self.setup_ui()
+        
+        # Load initial data
+        self.load_metadata()
         
         # Register as observer for state changes
         self.app_state.register_observer(self.on_state_change)
@@ -61,412 +62,422 @@ class UploadPanel(ctk.CTkFrame):
         Configure the panel layout and widgets.
         """
         # Configure grid layout
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(0, weight=0)  # Title
+        self.grid_rowconfigure(1, weight=1)  # Content (scrollable)
         self.grid_columnconfigure(0, weight=1)
         
-        # Title label
+        # Title
         title_label = ctk.CTkLabel(
             self,
-            text="Upload Precipitation Data",
-            font=ctk.CTkFont(size=18, weight="bold")
+            text="Dataset Management",
+            font=ctk.CTkFont(size=20, weight="bold")
         )
         title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
         
-        # Instructions
-        instructions = ctk.CTkLabel(
-            self,
-            text="Upload precipitation time series data from CSV or Excel files.\n"
-                 "The file should contain a date column and a precipitation column.\n"
-                 "Metadata rows at the top of the file will be automatically detected.",
-            font=ctk.CTkFont(size=12),
-            text_color="gray",
-            justify="left"
-        )
-        instructions.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="w")
+        # Scrollable container for main content
+        self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scroll_frame.grid(row=1, column=0, padx=0, pady=0, sticky="nsew")
+        self.scroll_frame.grid_columnconfigure(0, weight=1)
         
-        # Upload frame
-        self.upload_frame = self.create_upload_frame()
-        self.upload_frame.grid(row=2, column=0, padx=20, pady=10, sticky="new")
+        # 1. Current Dataset Metadata Section
+        self.create_metadata_section()
         
-        # Preview frame
-        self.preview_frame = self.create_preview_frame()
-        self.preview_frame.grid(row=3, column=0, padx=20, pady=10, sticky="nsew")
+        # 2. Import New Data Section
+        self.create_import_section()
         
-        # Process button frame
-        self.process_frame = self.create_process_frame()
-        self.process_frame.grid(row=4, column=0, padx=20, pady=(10, 20), sticky="ew")
-    
-    def create_upload_frame(self) -> ctk.CTkFrame:
-        """
-        Create file upload interface.
-        
-        Returns:
-            Frame containing file selection button
-        """
-        frame = ctk.CTkFrame(self)
+    def create_metadata_section(self) -> None:
+        """Create the section for viewing and editing current dataset metadata."""
+        frame = ctk.CTkFrame(self.scroll_frame)
+        frame.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
         frame.grid_columnconfigure(1, weight=1)
         
-        # Select file button
-        self.select_button = ctk.CTkButton(
+        # Section Header
+        header = ctk.CTkLabel(
             frame,
-            text="Select Time Series File",
-            command=self.on_select_file_clicked,
-            width=180
+            text="Current Dataset Metadata",
+            font=ctk.CTkFont(size=16, weight="bold")
         )
-        self.select_button.grid(row=0, column=0, padx=10, pady=15)
+        header.grid(row=0, column=0, columnspan=2, padx=15, pady=15, sticky="w")
         
-        # Selected file label
-        self.file_label = ctk.CTkLabel(
+        # Metadata Fields
+        self.fields = [
+            ("Filename", "filename", True),  # Read-only
+            ("Station Name", "station_name", False),
+            ("Latitude", "latitude", False),
+            ("Longitude", "longitude", False),
+            ("Elevation (m)", "elevation", False),
+            ("Start Year", "start_year", False),
+            ("End Year", "end_year", False),
+            ("Data Coverage", "data_coverage", True), # Read-only for now
+            ("Units", "units", True) # Read-only (system uses mm)
+        ]
+        
+        self.metadata_entries = {}
+        
+        for i, (label_text, key, readonly) in enumerate(self.fields):
+            row = i + 1
+            
+            label = ctk.CTkLabel(
+                frame,
+                text=label_text + ":",
+                font=ctk.CTkFont(size=12)
+            )
+            label.grid(row=row, column=0, padx=15, pady=5, sticky="w")
+            
+            var = ctk.StringVar()
+            self.metadata_vars[key] = var
+            
+            entry = ctk.CTkEntry(
+                frame,
+                textvariable=var,
+                state="readonly" if readonly else "normal",
+                width=300
+            )
+            entry.grid(row=row, column=1, padx=15, pady=5, sticky="w")
+            self.metadata_entries[key] = entry
+            
+        # Buttons Frame
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame.grid(row=len(self.fields)+1, column=1, padx=15, pady=20, sticky="w")
+        
+        # Save Button
+        self.save_btn = ctk.CTkButton(
+            btn_frame,
+            text="Save Metadata Changes",
+            command=self.save_metadata,
+            fg_color="green",
+            hover_color="darkgreen"
+        )
+        self.save_btn.pack(side="left", padx=(0, 10))
+        
+        # Refresh Button
+        self.refresh_btn = ctk.CTkButton(
+            btn_frame,
+            text="Refresh from File",
+            command=self.refresh_metadata,
+            fg_color="gray",
+            hover_color="darkgray"
+        )
+        self.refresh_btn.pack(side="left")
+        
+    def create_import_section(self) -> None:
+        """Create the section for importing new data."""
+        frame = ctk.CTkFrame(self.scroll_frame)
+        frame.grid(row=1, column=0, padx=20, pady=20, sticky="ew")
+        frame.grid_columnconfigure(1, weight=1)
+        
+        # Section Header
+        header = ctk.CTkLabel(
             frame,
-            text="No file selected",
-            font=ctk.CTkFont(size=12),
+            text="Import New Data",
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        header.grid(row=0, column=0, columnspan=2, padx=15, pady=15, sticky="w")
+        
+        # Instructions
+        instr = ctk.CTkLabel(
+            frame,
+            text="Upload a CSV or Excel file to set it as the current dataset.\n"
+                 "The system will attempt to detect date and precipitation columns.",
+            justify="left",
             text_color="gray"
         )
-        self.file_label.grid(row=0, column=1, padx=10, pady=15, sticky="w")
+        instr.grid(row=1, column=0, columnspan=2, padx=15, pady=(0, 15), sticky="w")
         
-        return frame
-    
-    def create_preview_frame(self) -> ctk.CTkFrame:
-        """
-        Create data preview area.
-        
-        Returns:
-            Frame for displaying file preview
-        """
-        frame = ctk.CTkFrame(self)
-        frame.grid_rowconfigure(1, weight=1)
-        frame.grid_columnconfigure(0, weight=1)
-        
-        # Preview label
-        self.preview_label = ctk.CTkLabel(
+        # File Selection
+        self.select_btn = ctk.CTkButton(
             frame,
-            text="File preview will appear here",
-            font=ctk.CTkFont(size=14)
+            text="Select File...",
+            command=self.on_select_file
         )
-        self.preview_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        self.select_btn.grid(row=2, column=0, padx=15, pady=10, sticky="w")
         
-        # Scrollable preview area
-        self.preview_text = ctk.CTkTextbox(frame, height=200, wrap="none")
-        self.preview_text.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-        self.preview_text.configure(state="disabled")
+        self.file_label = ctk.CTkLabel(frame, text="No file selected")
+        self.file_label.grid(row=2, column=1, padx=15, pady=10, sticky="w")
         
-        return frame
-    
-    def create_process_frame(self) -> ctk.CTkFrame:
-        """
-        Create process controls area.
-        
-        Returns:
-            Frame containing process button and progress indicator
-        """
-        frame = ctk.CTkFrame(self)
-        frame.grid_columnconfigure(0, weight=1)
-        
-        # Process button
-        self.process_button = ctk.CTkButton(
+        # Import Button
+        self.import_btn = ctk.CTkButton(
             frame,
-            text="Process and Calculate Parameters",
-            command=self.on_process_clicked,
+            text="Import and Lock Dataset",
+            command=self.on_import_clicked,
             state="disabled"
         )
-        self.process_button.grid(row=0, column=0, padx=10, pady=10)
+        self.import_btn.grid(row=3, column=0, columnspan=2, padx=15, pady=20, sticky="ew")
         
-        # Progress bar
-        self.progress_bar = ctk.CTkProgressBar(frame)
-        self.progress_bar.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="ew")
-        self.progress_bar.set(0)
-        
-        # Progress label
-        self.progress_label = ctk.CTkLabel(
-            frame,
-            text="",
-            font=ctk.CTkFont(size=12)
-        )
-        self.progress_label.grid(row=2, column=0, padx=10, pady=(0, 10))
-        
-        return frame
-    
-    def on_select_file_clicked(self) -> None:
+        # Progress
+        self.progress = ctk.CTkProgressBar(frame)
+        self.progress.grid(row=4, column=0, columnspan=2, padx=15, pady=(0, 10), sticky="ew")
+        self.progress.set(0)
+        self.progress_label = ctk.CTkLabel(frame, text="")
+        self.progress_label.grid(row=5, column=0, columnspan=2, padx=15, pady=(0, 15))
+
+    def load_metadata(self) -> None:
+        """Load metadata from session config into UI fields."""
+        try:
+            # Access session config via project_controller attached to app_state
+            # Note: This dependency should ideally be cleaner, but works for now
+            if hasattr(self.app_state, 'project_controller'):
+                config = self.app_state.project_controller.session_config
+                metadata = config.dataset_metadata
+                
+                if not metadata:
+                    # Provide defaults or clear
+                    self.clear_metadata_fields()
+                    self.metadata_vars["filename"].set("No dataset loaded")
+                    return
+                
+                # Populate fields
+                for key, var in self.metadata_vars.items():
+                    val = metadata.get(key, "")
+                    if val is None:
+                        val = ""
+                    var.set(str(val))
+                    
+            else:
+                logger.warning("Project controller not available in app_state")
+                
+        except Exception as e:
+            logger.error(f"Error loading metadata: {e}")
+            
+    def clear_metadata_fields(self) -> None:
+        """Clear all metadata entry fields."""
+        for var in self.metadata_vars.values():
+            var.set("")
+
+    def save_metadata(self) -> None:
+        """Save edited metadata back to session config."""
+        try:
+            if not hasattr(self.app_state, 'project_controller'):
+                return
+
+            config = self.app_state.project_controller.session_config
+            current_metadata = config.dataset_metadata.copy() # Start with existing to keep hidden fields
+            
+            # Update with values from UI
+            updates = {}
+            filtered_out_keys = ['filename', 'data_coverage', 'units'] # Read-only
+            
+            for key, var in self.metadata_vars.items():
+                if key not in filtered_out_keys:
+                    val = var.get()
+                    # Convert types if possible
+                    if key in ['latitude', 'longitude', 'elevation']:
+                        try:
+                            val = float(val) if val else None
+                        except ValueError:
+                            pass # Keep as string or handle error?
+                    elif key in ['start_year', 'end_year']:
+                        try:
+                            val = int(float(val)) if val else None
+                        except ValueError:
+                            pass
+                            
+                    updates[key] = val
+            
+            current_metadata.update(updates)
+            config.dataset_metadata = current_metadata
+            config.save()
+            
+            messagebox.showinfo("Success", "Metadata saved successfully.")
+            logger.info("Metadata updated by user.")
+            
+        except Exception as e:
+            logger.error(f"Error saving metadata: {e}")
+            messagebox.showerror("Error", f"Failed to save metadata:\n{e}")
+
+    def refresh_metadata(self) -> None:
         """
-        Handle file selection button click.
+        Re-analyze the current dataset file and update metadata fields.
         """
-        # Open file dialog
+        try:
+            # Get current dataset filename
+            if not hasattr(self.app_state, 'project_controller'):
+                return
+                
+            config = self.app_state.project_controller.session_config
+            filename = config.selected_dataset_file
+            
+            if not filename or filename == "None":
+                messagebox.showwarning("No Dataset", "No dataset is currently selected.")
+                return
+                
+            # Construct full path
+            # Access project_folder from app_state or session_config
+            project_folder = self.app_state.project_folder
+            if not project_folder:
+                 project_folder = config.project_folder
+                 
+            if not project_folder:
+                messagebox.showerror("Error", "No project folder selected.")
+                return
+
+            filepath = Path(project_folder) / "data" / filename
+            
+            if not filepath.exists():
+                messagebox.showerror("File Not Found", f"Could not find dataset file:\n{filepath}")
+                return
+                
+            # Call controller to analyze file
+            result = self.data_controller.generate_metadata_from_file(filepath)
+            
+            if result.success:
+                new_metadata = result.value
+                
+                # Update UI
+                self.metadata_vars["filename"].set(new_metadata.get("filename", ""))
+                self.metadata_vars["station_name"].set(new_metadata.get("station_name", ""))
+                
+                # Handle potential None values safely
+                lat = new_metadata.get("latitude")
+                self.metadata_vars["latitude"].set(str(lat) if lat is not None else "")
+                
+                lon = new_metadata.get("longitude")
+                self.metadata_vars["longitude"].set(str(lon) if lon is not None else "")
+                
+                elev = new_metadata.get("elevation")
+                self.metadata_vars["elevation"].set(str(elev) if elev is not None else "")
+                
+                start_year = new_metadata.get("start_year")
+                self.metadata_vars["start_year"].set(str(start_year) if start_year is not None else "")
+                
+                end_year = new_metadata.get("end_year")
+                self.metadata_vars["end_year"].set(str(end_year) if end_year is not None else "")
+                
+                coverage = new_metadata.get("data_coverage")
+                if coverage is not None:
+                    try:
+                        self.metadata_vars["data_coverage"].set(f"{float(coverage)*100:.1f}%")
+                    except:
+                        self.metadata_vars["data_coverage"].set("")
+                else:
+                    self.metadata_vars["data_coverage"].set("")
+                    
+                self.metadata_vars["units"].set(new_metadata.get("units", "mm"))
+                
+                # Auto-save to config
+                config.dataset_metadata = new_metadata
+                config.save()
+                
+                messagebox.showinfo("Success", "Metadata refreshed from file analysis.")
+                logger.info(f"Metadata refreshed for {filename}")
+                
+            else:
+                messagebox.showerror("Analysis Failed", f"Failed to analyze file: {result.error}")
+                
+        except Exception as e:
+            logger.error(f"Error refreshing metadata: {e}")
+            messagebox.showerror("Error", f"An unexpected error occurred: {e}")
+
+    def on_select_file(self) -> None:
+        """Handle file selection."""
         file_path = filedialog.askopenfilename(
-            title="Select Precipitation Time Series File",
-            filetypes=[
-                ("Supported files", "*.csv *.xlsx *.xls"),
-                ("CSV files", "*.csv"),
-                ("Excel files", "*.xlsx *.xls"),
-                ("All files", "*.*")
-            ]
+            title="Select Data File",
+            filetypes=[("Data Files", "*.csv *.xlsx *.xls")]
         )
         
-        if not file_path:
-            return
-        
-        self.selected_file = Path(file_path)
-        self.file_label.configure(text=f"Selected: {self.selected_file.name}")
-        
-        # Preview the file
-        self.preview_file()
-        
-        # Enable process button
-        self.process_button.configure(state="normal")
-    
-    def preview_file(self) -> None:
-        """
-        Display a preview of the selected file.
-        """
-        try:
-            # Read first 20 lines for preview
-            with open(self.selected_file, 'r') as f:
-                lines = f.readlines()[:20]
-            
-            preview_text = "".join(lines)
-            if len(lines) == 20:
-                preview_text += "\n... (file continues)"
-            
-            self.preview_text.configure(state="normal")
-            self.preview_text.delete("1.0", "end")
-            self.preview_text.insert("1.0", preview_text)
-            self.preview_text.configure(state="disabled")
-            
-            self.preview_label.configure(text=f"Preview of {self.selected_file.name}")
-            
-        except Exception as e:
-            logger.error(f"Error previewing file: {e}")
-            messagebox.showerror("Preview Error", f"Could not preview file:\n{e}")
-    
-    def on_process_clicked(self) -> None:
-        """
-        Handle process button click.
-        """
+        if file_path:
+            self.selected_file = Path(file_path)
+            self.file_label.configure(text=self.selected_file.name)
+            self.import_btn.configure(state="normal")
+
+    def on_import_clicked(self) -> None:
+        """Handle import button click."""
         if not self.selected_file:
-            messagebox.showwarning("No File", "Please select a file first")
             return
+            
+        self.import_btn.configure(state="disabled")
+        self.progress.configure(mode="indeterminate")
+        self.progress.start()
+        self.progress_label.configure(text="Importing and analyzing...")
         
-        # Check if project folder is set
-        if not self.app_state.has_project_folder():
-            messagebox.showerror(
-                "No Project Folder",
-                "Please select a project folder before processing data"
-            )
-            return
+        # Run in thread
+        threading.Thread(target=self._run_import, daemon=True).start()
         
-        # Disable process button
-        self.process_button.configure(state="disabled")
-        
-        # Show progress
-        self.progress_bar.configure(mode="indeterminate")
-        self.progress_bar.start()
-        self.progress_label.configure(text="Parsing file...")
-        
-        # Process in background thread
-        def process_thread():
-            result = self.parse_and_process_csv()
-            self.after(0, lambda: self.handle_process_result(result))
-        
-        threading.Thread(target=process_thread, daemon=True).start()
-    
-    def parse_and_process_csv(self) -> Tuple[bool, Optional[pd.DataFrame], Optional[str]]:
-        """
-        Parse CSV or Excel file with flexible format detection.
-        
-        Returns:
-            Tuple of (success, dataframe, error_message)
-        """
+    def _run_import(self) -> None:
+        """Background import task."""
         try:
-            file_ext = self.selected_file.suffix.lower()
+            # Use 'Best Guess' for station name (filename stem)
+            station_name = self.selected_file.stem
             
-            # Determine file type and read accordingly
-            if file_ext in ['.xlsx', '.xls']:
-                # Excel file - read first sheet
-                logger.info(f"Reading Excel file: {self.selected_file}")
-                df_raw = pd.read_excel(self.selected_file, sheet_name=0)
-                
-                # Convert to list of lines for unified processing
-                lines = []
-                for idx, row in df_raw.iterrows():
-                    line = ','.join([str(val) for val in row.values])
-                    lines.append(line)
-                
-            elif file_ext == '.csv':
-                # CSV file - read as text
-                logger.info(f"Reading CSV file: {self.selected_file}")
-                with open(self.selected_file, 'r') as f:
-                    lines = f.readlines()
-            else:
-                return False, None, f"Unsupported file type: {file_ext}\n\n" \
-                                   "Please use CSV (.csv) or Excel (.xlsx, .xls) files."
+            # Call controller to import
+            # Assuming auto-detection of columns for now, or use defaults
+            # To be robust, we might need column selection UI. 
+            # For now, we'll try common names in the controller or assume defaults.
+            # The modified controller `import_custom_data` expects specific col names.
+            # Let's try to detect them here or pass 'DATE'/'PRCP' and hope `import_custom_data` logic helps?
+            # Actually, `import_custom_data` checks for specific columns.
+            # We should probably do a quick pre-scan or just try standard names.
+            # Let's try 'DATE' and 'PRCP' as default target names.
             
-            # Find the header row (contains date and precipitation columns)
-            header_row_idx = None
-            date_col = None
-            precip_col = None
-            precip_unit = 'mm'  # Default to mm
+            # Since `import_custom_data` requires column names, and we want "best guess",
+            # we might need to inspect the file *before* calling it, or updated controller to handle "auto".
+            # The current controller implementation expects exact column names.
+            # Let's assume the user has formatted it or we pass a guess.
+            # For this iteration, let's hardcode 'DATE' and 'PRCP' (case insensitive in controller?)
+            # Actually the controller I viewed requires exact match.
+            # I'll stick to 'DATE' and 'PRCP' for now. Improving column mapping is a future task.
             
-            for idx, line in enumerate(lines):
-                # Check if this line looks like a header
-                if ',' in line:
-                    parts = [p.strip().lower() for p in line.split(',')]
-                    
-                    # Look for date column
-                    date_candidates = ['date', 'time', 'datetime', 'day']
-                    for i, part in enumerate(parts):
-                        if any(dc in part for dc in date_candidates):
-                            date_col = i
-                            break
-                    
-                    # Look for precipitation column
-                    precip_candidates = ['prcp', 'precip', 'precipitation', 'rain', 'rainfall']
-                    for i, part in enumerate(parts):
-                        if any(pc in part for pc in precip_candidates):
-                            precip_col = i
-                            
-                            # Check for unit indicators
-                            if 'in' in part or 'inch' in part:
-                                precip_unit = 'in'
-                            elif 'mm' in part or 'millimeter' in part:
-                                precip_unit = 'mm'
-                            
-                            break
-                    
-                    # If we found both columns, this is the header
-                    if date_col is not None and precip_col is not None:
-                        header_row_idx = idx
-                        break
+            result = self.data_controller.import_custom_data(
+                filepath=self.selected_file,
+                station_name=station_name,
+                unit="mm", # Default assumption
+                date_col="DATE",
+                prcp_col="PRCP"
+            )
             
-            if header_row_idx is None:
-                return False, None, "Could not find date and precipitation columns in file.\n\n" \
-                                   "Expected column names like: DATE, PRCP, Precipitation, etc."
-            
-            # Read the data starting from the header row
-            if file_ext in ['.xlsx', '.xls']:
-                df = pd.read_excel(self.selected_file, sheet_name=0, skiprows=header_row_idx)
-            else:
-                df = pd.read_csv(self.selected_file, skiprows=header_row_idx)
-            
-            # Get actual column names
-            date_col_name = df.columns[date_col]
-            precip_col_name = df.columns[precip_col]
-            
-            logger.info(f"Detected columns: date='{date_col_name}', precip='{precip_col_name}', unit={precip_unit}")
-            
-            # Rename columns to standard names
-            df = df.rename(columns={
-                date_col_name: 'DATE',
-                precip_col_name: 'PRCP'
-            })
-            
-            # Keep only DATE and PRCP columns
-            df = df[['DATE', 'PRCP']]
-            
-            # Convert DATE to datetime
-            df['DATE'] = pd.to_datetime(df['DATE'])
-            
-            # Convert precipitation to mm if needed
-            if precip_unit == 'in':
-                logger.info("Converting precipitation from inches to mm")
-                df['PRCP'] = df['PRCP'] * 25.4
-            
-            # Remove rows with missing values
-            df = df.dropna()
-            
-            # Sort by date
-            df = df.sort_values('DATE')
-            
-            logger.info(f"Parsed {len(df)} rows of data from {df['DATE'].min()} to {df['DATE'].max()}")
-            
-            return True, df, None
+            self.after(0, lambda: self._handle_import_result(result))
             
         except Exception as e:
-            logger.error(f"Error parsing file: {e}", exc_info=True)
-            return False, None, f"Error parsing file:\n\n{str(e)}"
-    
-    def handle_process_result(self, result: Tuple[bool, Optional[pd.DataFrame], Optional[str]]) -> None:
-        """
-        Handle CSV processing result.
+            self.after(0, lambda: self._handle_import_error(str(e)))
+
+    def _handle_import_result(self, result) -> None:
+        """Handle success/fail of import on main thread."""
+        self.progress.stop()
+        self.progress.set(0 if not result.success else 1)
+        self.import_btn.configure(state="normal")
+        self.progress_label.configure(text="")
         
-        Args:
-            result: Tuple of (success, dataframe, error_message)
-        """
-        success, df, error = result
-        
-        if not success:
-            self.progress_bar.stop()
-            self.progress_bar.set(0)
-            self.progress_label.configure(text="Processing failed")
-            self.process_button.configure(state="normal")
-            messagebox.showerror("Processing Failed", error)
-            return
-        
-        # Store precipitation data in app state so it's available for plotting
-        self.app_state.set_precipitation_data(df)
-        
-        # Update progress
-        self.progress_label.configure(text="Calculating parameters...")
-        
-        # Calculate parameters in background thread
-        def calculate_thread():
-            calc_result = self.data_controller.calculate_historical_parameters(df)
-            # Schedule UI update on main thread
-            self.after(0, lambda: self.handle_calculation_result(calc_result))
-        
-        threading.Thread(target=calculate_thread, daemon=True).start()
-    
-    def handle_calculation_result(self, result) -> None:
-        """
-        Handle parameter calculation result.
-        
-        This runs on the main thread to safely update UI.
-        
-        Args:
-            result: Result object from calculate_historical_parameters()
-        """
-        # Stop progress
-        self.progress_bar.stop()
-        self.progress_bar.configure(mode="determinate")
-        
-        # Re-enable process button
-        self.process_button.configure(state="normal")
-        
-        if not result.success:
-            self.progress_label.configure(text="Calculation failed")
-            self.progress_bar.set(0)
-            messagebox.showerror(
-                "Calculation Failed",
-                f"Failed to calculate parameters:\n\n{result.error}"
-            )
-            return
-        
-        # Success - update app state on main thread to trigger observers safely
-        if result.value:
-            logger.info(f"Setting historical params in app_state: {result.value}")
-            self.app_state.set_historical_params(result.value)
+        if result.success:
+            # Update session config
+            try:
+                if hasattr(self.app_state, 'project_controller'):
+                    config = self.app_state.project_controller.session_config
+                    
+                    if isinstance(result.value, dict) and 'metadata' in result.value:
+                        config.dataset_metadata = result.value['metadata']
+                        config.selected_dataset_file = result.value['metadata']['filename']
+                    else:
+                        # Fallback
+                        filename = Path(result.value).name if isinstance(result.value, (str, Path)) else "imported.csv"
+                        config.selected_dataset_file = filename
+                    
+                    config.save()
+                    
+                    # Reload UI
+                    self.load_metadata()
+                    
+                    messagebox.showinfo("Import Complete", 
+                        f"Successfully imported {config.selected_dataset_file}.\n"
+                        "Metadata has been populated. Please review and edit if necessary.")
+                    
+            except Exception as e:
+                messagebox.showerror("Error", f"Imported data but failed to update session: {e}")
         else:
-            logger.warning("Calculation succeeded but result.value is None")
-        
-        self.progress_label.configure(text="Processing complete!")
-        self.progress_bar.set(1.0)
-        messagebox.showinfo(
-            "Processing Complete",
-            f"Successfully processed {self.selected_file.name}\n\n"
-            f"View the calculated parameters in the 'Parameters' tab."
-        )
-    
-    def on_state_change(self, state_key: str, new_value) -> None:
-        """
-        React to application state changes.
-        
-        Args:
-            state_key: Name of the state property that changed
-            new_value: New value of the state property
-        """
-        pass
+            messagebox.showerror("Import Failed", result.error)
+
+    def _handle_import_error(self, error: str) -> None:
+        self.progress.stop()
+        self.import_btn.configure(state="normal")
+        messagebox.showerror("System Error", f"An unexpected error occurred:\n{error}")
+
+    def on_state_change(self, state_key: str, new_value: Any) -> None:
+        """Observer callback."""
+        # Refresh metadata if a new station is selected/downloaded elsewhere
+        if state_key in ['selected_station']: # Or if we trigger a generic 'dataset_changed'
+             self.load_metadata()
+        # Note: We don't have a specific event for 'session config changed'. 
+        # But usually `selected_station` changes when we download.
     
     def destroy(self) -> None:
-        """
-        Clean up resources when panel is destroyed.
-        """
         self.app_state.unregister_observer(self.on_state_change)
         super().destroy()

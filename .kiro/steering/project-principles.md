@@ -37,7 +37,6 @@ Make it easy for hydrologic practitioners to find, download, and analyze daily p
 - `precipgen.data`: Data acquisition and management
 - `precipgen.core`: Analysis algorithms and statistics
 - `precipgen.cli`: Command-line interface
-- `precipgen.web`: Streamlit web interface
 
 ## Quality Standards
 - All imports use package structure (`from precipgen.x import y`)

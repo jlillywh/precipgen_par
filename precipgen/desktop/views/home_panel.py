@@ -106,6 +106,79 @@ class HomePanel(ctk.CTkFrame):
         )
         self.change_button.grid(row=2, column=1, padx=20, pady=15, sticky="e")
     
+        # Recent Projects Section
+        self.recent_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.recent_frame.grid(row=3, column=0, columnspan=2, padx=20, pady=(20, 0), sticky="nsew")
+        self.recent_frame.grid_columnconfigure(0, weight=1)
+        
+        self.recent_label = ctk.CTkLabel(
+            self.recent_frame,
+            text="Recent Projects",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            anchor="w"
+        )
+        self.recent_label.grid(row=0, column=0, sticky="w", pady=(0, 10))
+        
+        # Container for recent project buttons
+        self.recent_list_frame = ctk.CTkFrame(self.recent_frame, fg_color="transparent")
+        self.recent_list_frame.grid(row=1, column=0, sticky="nsew")
+        self.recent_list_frame.grid_columnconfigure(0, weight=1)
+        
+        self.update_recent_projects()
+
+    def update_recent_projects(self) -> None:
+        """
+        Refresh the list of recent projects.
+        """
+        # Clear existing buttons
+        for widget in self.recent_list_frame.winfo_children():
+            widget.destroy()
+            
+        recent_paths = self.project_controller.session_config.recent_projects
+        
+        if not recent_paths:
+            no_recent = ctk.CTkLabel(
+                self.recent_list_frame,
+                text="No recent projects",
+                text_color="gray",
+                anchor="w"
+            )
+            no_recent.grid(row=0, column=0, sticky="w")
+            return
+            
+        for i, path_str in enumerate(recent_paths):
+            path = Path(path_str)
+            btn = ctk.CTkButton(
+                self.recent_list_frame,
+                text=str(path),
+                anchor="w",
+                fg_color="transparent",
+                text_color=("gray10", "gray90"),
+                hover_color=("gray70", "gray30"),
+                command=lambda p=path: self.on_recent_project_clicked(p)
+            )
+            btn.grid(row=i, column=0, sticky="ew", pady=2)
+            
+    def on_recent_project_clicked(self, path: Path) -> None:
+        """
+        Handle click on a recent project.
+        
+        Args:
+            path: Path to the project folder
+        """
+        if self.project_controller.load_project_folder(path):
+            messagebox.showinfo(
+                "Project Loaded",
+                f"Loaded project:\n{path}"
+            )
+        else:
+            messagebox.showerror(
+                "Error",
+                f"Could not load project:\n{path}\n\nThe folder may no longer exist or be accessible."
+            )
+            # Refresh list to potentially remove invalid entry (handled by add_recent_project in controller logic if we wanted to be strict, but for now just refresh UI if needed)
+            self.update_recent_projects()
+    
     def on_change_folder_clicked(self) -> None:
         """
         Handle folder change button click.
@@ -133,6 +206,9 @@ class HomePanel(ctk.CTkFrame):
                 f"Working directory set to:\n{selected_folder}"
             )
             
+            # Update recent projects list
+            self.update_recent_projects()
+            
         except Exception as e:
             logger.error(f"Error changing working directory: {e}", exc_info=True)
             messagebox.showerror(
@@ -156,6 +232,10 @@ class HomePanel(ctk.CTkFrame):
         else:
             # Display the full path
             self.folder_label.configure(text=f"Working Directory: {folder_path}")
+            
+        # Also refresh recent projects as the order might have changed
+        # (defer this to ensure config is saved first)
+        self.after(100, self.update_recent_projects)
     
     def on_state_change(self, state_key: str, new_value) -> None:
         """

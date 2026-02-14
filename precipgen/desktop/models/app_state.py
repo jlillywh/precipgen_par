@@ -43,6 +43,7 @@ class AppState:
         self.trend_analysis_results: Optional[Any] = None  # TrendAnalysisResults type
         self.selected_station: Optional[str] = None  # For cross-tab persistence
         self.available_stations: List[str] = []  # List of CSV files in working directory
+        self.project_controller: Optional[Any] = None  # Reference to project controller for config
         
         # Observer pattern: list of callbacks to notify on state changes
         self._observers: List[Callable[[str, Any], None]] = []

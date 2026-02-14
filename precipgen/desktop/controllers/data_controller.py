@@ -9,6 +9,8 @@ analysis modules for parameter calculation.
 import tempfile
 import shutil
 import logging
+import sys
+import os
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict
 from dataclasses import dataclass
@@ -107,6 +109,7 @@ class SearchCriteria:
     state: Optional[str] = None
     start_year: Optional[int] = None
     end_year: Optional[int] = None
+    min_years: Optional[int] = None
     min_coverage: float = 80.0
 
 
@@ -171,8 +174,19 @@ class DataController:
         try:
             logger.info("Fetching GHCN inventory...")
             
-            # Fetch inventory from GHCN database
-            raw_inventory = fetch_ghcn_inventory()
+            # Define cache path in user's AppData/Home
+            # Use the same parent directory as temp_download_path but persistent
+            if sys.platform == 'win32':
+                cache_dir = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming')) / 'PrecipGen' / 'cache'
+            else:
+                cache_dir = Path.home() / '.precipgen' / 'cache'
+            
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_path = cache_dir / "ghcnd-inventory.txt"
+            
+            # Fetch inventory from GHCN database with caching
+            raw_inventory = fetch_ghcn_inventory(cache_path=str(cache_path))
+            
             if raw_inventory is None:
                 return Result(
                     success=False,
@@ -254,7 +268,7 @@ class DataController:
         
         logger.info(f"Starting with {len(filtered)} PRCP records")
         logger.info(f"Search criteria: lat={criteria.latitude}, lon={criteria.longitude}, "
-                   f"radius={criteria.radius_km}")
+                   f"radius={criteria.radius_km}, min_years={criteria.min_years}")
         
         # Filter by geographic location (radius search)
         if criteria.latitude is not None and criteria.longitude is not None and criteria.radius_km is not None:
@@ -265,9 +279,15 @@ class DataController:
                 criteria.radius_km
             )
             logger.info(f"After radius filter: {len(filtered)} records")
+            
+        # Filter by minimum years on record
+        if criteria.min_years is not None and criteria.min_years > 0:
+            # Calculate duration for each record
+            filtered['DURATION'] = filtered['LASTYEAR'] - filtered['FIRSTYEAR'] + 1
+            filtered = filtered[filtered['DURATION'] >= criteria.min_years]
+            logger.info(f"After min_years filter ({criteria.min_years}): {len(filtered)} records")
         
-        return filtered
-    
+        return filtered    
     def _filter_by_radius(
         self,
         df: pd.DataFrame,
@@ -464,8 +484,14 @@ class DataController:
             # Save to temporary location first
             ghcn_data.save_to_csv(str(temp_file))
             
-            # Move to project folder (flat structure - no subdirectories)
-            final_file = self.app_state.project_folder / f"{station.station_id}.csv"
+            # Move to project folder (data subdirectory)
+            data_folder = self.app_state.project_folder / "data"
+            data_folder.mkdir(exist_ok=True)
+            final_file = data_folder / f"{station.station_id}.csv"
+            
+            # If default file exists (from previous bug), remove it or just ignore?
+            # Better to not touch it unless we want to migrate.
+            # But we are overwriting if it exists in data folder.
             shutil.move(str(temp_file), str(final_file))
             
             logger.info(f"Data saved to {final_file}")
@@ -484,9 +510,26 @@ class DataController:
             if progress_callback:
                 progress_callback(100, "Download complete!")
             
+            # Prepare metadata for session storage
+            metadata = {
+                "filename": f"{station.station_id}.csv",
+                "station_name": station.name,
+                "latitude": station.latitude,
+                "longitude": station.longitude,
+                "elevation": station.elevation,
+                "start_year": station.start_date,
+                "end_year": station.end_date,
+                "data_coverage": station.data_coverage,
+                "units": "mm",
+                "headers": ["DATE", "PRCP"]
+            }
+
             return Result(
                 success=True,
-                value=ghcn_data.data,
+                value={
+                    "data": ghcn_data.data,
+                    "metadata": metadata
+                },
                 error=None
             )
             
@@ -606,6 +649,93 @@ class DataController:
                     
         except Exception as e:
             logger.error(f"Error during temp file cleanup: {e}")
+
+    def generate_metadata_from_file(self, filepath: Path) -> Result:
+        """
+        Analyze a precipitation file and generate metadata.
+        
+        Args:
+            filepath: Path to the CSV or Excel file
+            
+        Returns:
+            Result object with metadata dictionary on success
+        """
+        try:
+            # Determine file type and read
+            file_ext = filepath.suffix.lower()
+            if file_ext in ['.xlsx', '.xls']:
+                df = pd.read_excel(filepath, sheet_name=0)
+            else:
+                try:
+                    # Try reading with flexible column handling
+                    df = pd.read_csv(filepath, on_bad_lines='skip')
+                except (UnicodeDecodeError, pd.errors.ParserError):
+                    try:
+                        # Try alternate encoding
+                        df = pd.read_csv(filepath, encoding='latin1', on_bad_lines='skip')
+                    except:
+                        # Last resort - try with error_bad_lines=False for older pandas
+                        try:
+                            df = pd.read_csv(filepath, error_bad_lines=False)
+                        except:
+                            df = pd.read_csv(filepath, encoding='latin1', error_bad_lines=False)
+            
+            # Basic validation
+            if df.empty:
+                return Result(success=False, error="File is empty")
+                
+            # Normalize columns
+            df.columns = [str(col).upper() for col in df.columns]
+            
+            # Find DATE and PRCP columns
+            date_col = next((col for col in df.columns if 'DATE' in col), 'DATE')
+            
+            if date_col not in df.columns:
+                 # Check for plausible date column
+                 for col in df.columns:
+                     if 'YEAR' in col or 'TIME' in col:
+                         date_col = col
+                         break
+            
+            # Convert date to get years
+            start_year = None
+            end_year = None
+            if date_col in df.columns:
+                try:
+                    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+                    valid_dates = df.dropna(subset=[date_col])
+                    if not valid_dates.empty:
+                        start_year = int(valid_dates[date_col].dt.year.min())
+                        end_year = int(valid_dates[date_col].dt.year.max())
+                except:
+                    pass
+                
+            # Calculate simple coverage (row count / expected days)
+            coverage = 0
+            if start_year and end_year:
+                try:
+                    total_days = (df[date_col].max() - df[date_col].min()).days + 1
+                    coverage = len(df) / total_days if total_days > 0 else 0
+                except:
+                    pass
+
+            metadata = {
+                "filename": filepath.name,
+                "station_name": filepath.stem.replace("CUSTOM_", ""),
+                "latitude": None,
+                "longitude": None,
+                "elevation": None,
+                "start_year": start_year,
+                "end_year": end_year,
+                "data_coverage": coverage,
+                "units": "mm", # Assumption, or need heuristic
+                "headers": list(df.columns)
+            }
+            
+            return Result(success=True, value=metadata)
+            
+        except Exception as e:
+            return Result(success=False, error=str(e))
     
     def import_custom_data(
         self,
@@ -646,8 +776,19 @@ class DataController:
             logger.info(f"Importing custom data from {filepath}")
             logger.info(f"Station name: {station_name}, Unit: {unit}, Date col: {date_col}, Prcp col: {prcp_col}")
             
-            # Read the CSV file
-            df = pd.read_csv(filepath)
+            # Determine file type and read
+            file_ext = filepath.suffix.lower()
+            if file_ext in ['.xlsx', '.xls']:
+                logger.info(f"Reading Excel file: {filepath}")
+                df = pd.read_excel(filepath, sheet_name=0)
+            else:
+                logger.info(f"Reading CSV file: {filepath}")
+                df = pd.read_csv(filepath)
+            
+            # Normalize column names to upper case for easier matching
+            df.columns = [str(col).upper() for col in df.columns]
+            date_col = date_col.upper()
+            prcp_col = prcp_col.upper()
             
             # Check if specified columns exist
             if date_col not in df.columns:
@@ -728,9 +869,26 @@ class DataController:
             # Update available stations list
             self._update_available_stations()
             
+            # Prepare metadata for session storage
+            metadata = {
+                "filename": output_filename,
+                "station_name": station_name,
+                "latitude": None,  # Custom data might not have location
+                "longitude": None,
+                "elevation": None,
+                "start_year": int(df['DATE'].dt.year.min()),
+                "end_year": int(df['DATE'].dt.year.max()),
+                "data_coverage": 1.0,  # Assumed full coverage for imported valid data
+                "units": "mm",  # Converted to mm
+                "headers": list(df.columns)
+            }
+
             return Result(
                 success=True,
-                value=output_path
+                value={
+                    "path": output_path,
+                    "metadata": metadata
+                }
             )
             
         except Exception as e:

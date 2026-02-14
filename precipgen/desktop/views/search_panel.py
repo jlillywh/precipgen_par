@@ -76,58 +76,78 @@ class SearchPanel(ctk.CTkFrame):
     
     def setup_ui(self) -> None:
         """
-        Configure the panel layout and widgets.
+        Configure the panel layout with side-by-side design.
         
-        Creates a vertical layout with search interface at top,
-        results display in middle, and download controls at bottom.
+        Left side: Controls, station list, and download button
+        Right side: Interactive map
         """
-        # Configure grid layout - results frame should expand
-        self.grid_rowconfigure(2, weight=1)  # Results frame expands
-        self.grid_columnconfigure(0, weight=1)
+        # Configure grid layout - two columns
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)  # Left side (controls + results)
+        self.grid_columnconfigure(1, weight=2)  # Right side (map) - wider
         
-        # Title label
+        # LEFT SIDE - Controls and Results
+        left_panel = ctk.CTkFrame(self)
+        left_panel.grid(row=0, column=0, padx=(20, 10), pady=20, sticky="nsew")
+        left_panel.grid_rowconfigure(2, weight=1)  # Results expand
+        left_panel.grid_columnconfigure(0, weight=1)
+        
+        # Title
         title_label = ctk.CTkLabel(
-            self,
+            left_panel,
             text="GHCN Station Search",
             font=ctk.CTkFont(size=18, weight="bold")
         )
-        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
-        
-        # Search frame
-        self.search_frame = self.create_search_frame()
-        self.search_frame.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
-        
-        # Results frame
-        self.results_frame = self.create_results_frame()
-        self.results_frame.grid(row=2, column=0, padx=20, pady=10, sticky="nsew")
-        
-        # Download controls frame
-        self.download_frame = self.create_download_frame()
-        self.download_frame.grid(row=3, column=0, padx=20, pady=(10, 20), sticky="ew")
-    
-    def create_search_frame(self) -> ctk.CTkFrame:
-        """
-        Create search interface with interactive map.
-        
-        Returns:
-            Frame containing map widget and search controls
-        """
-        frame = ctk.CTkFrame(self)
-        frame.grid_columnconfigure(0, weight=1)
-        frame.grid_rowconfigure(1, weight=1)
+        title_label.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
         
         # Instructions
         instructions = ctk.CTkLabel(
-            frame,
-            text="Click on the map to select a location, then set the search radius and click Search.",
-            font=ctk.CTkFont(size=12),
+            left_panel,
+            text="Click on the map to select a location",
+            font=ctk.CTkFont(size=11),
             text_color="gray"
         )
-        instructions.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
+        instructions.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
+        
+        # Search controls
+        self.create_search_controls(left_panel)
+        
+        # Results frame
+        self.results_frame = self.create_results_frame(left_panel)
+        self.results_frame.grid(row=3, column=0, padx=10, pady=10, sticky="nsew")
+        
+        # Download button
+        self.download_button = ctk.CTkButton(
+            left_panel,
+            text="Download Station Data",
+            command=self.on_download_clicked,
+            state="disabled",
+            height=40
+        )
+        self.download_button.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
+        
+        # Progress bar
+        self.progress_bar = ctk.CTkProgressBar(left_panel)
+        self.progress_bar.grid(row=5, column=0, padx=10, pady=(0, 5), sticky="ew")
+        self.progress_bar.set(0)
+        
+        # Progress label
+        self.progress_label = ctk.CTkLabel(
+            left_panel,
+            text="",
+            font=ctk.CTkFont(size=11)
+        )
+        self.progress_label.grid(row=6, column=0, padx=10, pady=(0, 10))
+        
+        # RIGHT SIDE - Map
+        right_panel = ctk.CTkFrame(self)
+        right_panel.grid(row=0, column=1, padx=(10, 20), pady=20, sticky="nsew")
+        right_panel.grid_rowconfigure(0, weight=1)
+        right_panel.grid_columnconfigure(0, weight=1)
         
         # Map widget
-        self.map_widget = tkintermapview.TkinterMapView(frame, width=800, height=400, corner_radius=10)
-        self.map_widget.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        self.map_widget = tkintermapview.TkinterMapView(right_panel, corner_radius=10)
+        self.map_widget.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         
         # Set initial position (center of USA)
         self.map_widget.set_position(39.8283, -98.5795)
@@ -135,66 +155,77 @@ class SearchPanel(ctk.CTkFrame):
         
         # Add click handler
         self.map_widget.add_left_click_map_command(self.on_map_click)
-        
-        # Controls frame (below map)
-        controls_frame = ctk.CTkFrame(frame, fg_color="transparent")
+    
+    def create_search_controls(self, parent) -> None:
+        """Create search control widgets in the left panel."""
+        controls_frame = ctk.CTkFrame(parent)
         controls_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
         controls_frame.grid_columnconfigure(1, weight=1)
         
         # Coordinate display
-        coord_frame = ctk.CTkFrame(controls_frame)
-        coord_frame.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ctk.CTkLabel(
+            controls_frame,
+            text="Location:",
+            font=ctk.CTkFont(size=11, weight="bold")
+        ).grid(row=0, column=0, padx=5, pady=5, sticky="w")
         
-        ctk.CTkLabel(coord_frame, text="Selected Location:", font=ctk.CTkFont(weight="bold")).grid(
-            row=0, column=0, padx=5, pady=5
-        )
         self.coord_label = ctk.CTkLabel(
-            coord_frame,
-            text="Click on map to select",
-            font=ctk.CTkFont(size=12),
+            controls_frame,
+            text="Click on map",
+            font=ctk.CTkFont(size=11),
             text_color="gray"
         )
-        self.coord_label.grid(row=0, column=1, padx=5, pady=5)
+        self.coord_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
         
         # Radius control
-        radius_frame = ctk.CTkFrame(controls_frame)
-        radius_frame.grid(row=0, column=1, padx=5, pady=5, sticky="e")
+        ctk.CTkLabel(
+            controls_frame,
+            text="Radius (km):",
+            font=ctk.CTkFont(size=11, weight="bold")
+        ).grid(row=1, column=0, padx=5, pady=5, sticky="w")
         
-        ctk.CTkLabel(radius_frame, text="Search Radius (km):").grid(
-            row=0, column=0, padx=5, pady=5
-        )
-        self.radius_entry = ctk.CTkEntry(radius_frame, placeholder_text="e.g., 50", width=100)
-        self.radius_entry.grid(row=0, column=1, padx=5, pady=5)
-        self.radius_entry.insert(0, "50")  # Default value
-        
-        # Bind radius change to update circle
+        self.radius_entry = ctk.CTkEntry(controls_frame, placeholder_text="50", width=80)
+        self.radius_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        self.radius_entry.insert(0, "50")
         self.radius_entry.bind("<KeyRelease>", self.on_radius_changed)
+        
+        # Min Years control
+        ctk.CTkLabel(
+            controls_frame,
+            text="Min Years:",
+            font=ctk.CTkFont(size=11, weight="bold")
+        ).grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        
+        self.min_years_entry = ctk.CTkEntry(controls_frame, placeholder_text="30", width=80)
+        self.min_years_entry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        self.min_years_entry.insert(0, "30")
         
         # Search button
         self.search_button = ctk.CTkButton(
-            frame,
+            controls_frame,
             text="Search Stations",
             command=self.on_search_clicked,
-            height=40
+            height=35
         )
-        self.search_button.grid(row=3, column=0, padx=10, pady=10)
+        self.search_button.grid(row=3, column=0, columnspan=2, padx=5, pady=10, sticky="ew")
         
-        # Search progress indicator
-        self.search_progress = ctk.CTkProgressBar(frame)
-        self.search_progress.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="ew")
+        # Search progress
+        self.search_progress = ctk.CTkProgressBar(controls_frame)
+        self.search_progress.grid(row=4, column=0, columnspan=2, padx=5, pady=(0, 5), sticky="ew")
         self.search_progress.set(0)
-        self.search_progress.grid_remove()  # Hide initially
-        
-        return frame
+        self.search_progress.grid_remove()
     
-    def create_results_frame(self) -> ctk.CTkFrame:
+    def create_results_frame(self, parent) -> ctk.CTkFrame:
         """
         Create results display area.
         
+        Args:
+            parent: Parent widget
+            
         Returns:
             Frame for displaying search results
         """
-        frame = ctk.CTkFrame(self)
+        frame = ctk.CTkFrame(parent)
         frame.grid_rowconfigure(1, weight=1)
         frame.grid_columnconfigure(0, weight=1)
         
@@ -202,48 +233,14 @@ class SearchPanel(ctk.CTkFrame):
         self.results_label = ctk.CTkLabel(
             frame,
             text="Search results will appear here",
-            font=ctk.CTkFont(size=14)
-        )
-        self.results_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        
-        # Scrollable results area
-        self.results_scrollable = ctk.CTkScrollableFrame(frame)
-        self.results_scrollable.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-        self.results_scrollable.grid_columnconfigure(0, weight=1)
-        
-        return frame
-    
-    def create_download_frame(self) -> ctk.CTkFrame:
-        """
-        Create download controls area.
-        
-        Returns:
-            Frame containing download button and progress indicator
-        """
-        frame = ctk.CTkFrame(self)
-        frame.grid_columnconfigure(0, weight=1)
-        
-        # Download button
-        self.download_button = ctk.CTkButton(
-            frame,
-            text="Download Station Data",
-            command=self.on_download_clicked,
-            state="disabled"
-        )
-        self.download_button.grid(row=0, column=0, padx=10, pady=10)
-        
-        # Progress bar
-        self.progress_bar = ctk.CTkProgressBar(frame)
-        self.progress_bar.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="ew")
-        self.progress_bar.set(0)
-        
-        # Progress label
-        self.progress_label = ctk.CTkLabel(
-            frame,
-            text="",
             font=ctk.CTkFont(size=12)
         )
-        self.progress_label.grid(row=2, column=0, padx=10, pady=(0, 10))
+        self.results_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        
+        # Scrollable results area
+        self.results_scrollable = ctk.CTkScrollableFrame(frame, height=200)
+        self.results_scrollable.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+        self.results_scrollable.grid_columnconfigure(0, weight=1)
         
         return frame
     
@@ -301,15 +298,36 @@ class SearchPanel(ctk.CTkFrame):
         if self.current_circle:
             self.current_circle.delete()
         
-        # Add new circle (radius in meters for the API)
-        self.current_circle = self.map_widget.set_circle(
-            self.map_latitude,
-            self.map_longitude,
-            radius_km * 1000,  # Convert km to meters
-            color="blue",
-            fill_color="lightblue",
-            border_width=2
-        )
+        # Create circle as a polygon (approximate with 64 points)
+        import math
+        num_points = 64
+        circle_points = []
+        
+        # Earth radius in km
+        earth_radius = 6371.0
+        
+        # Convert radius to degrees (approximate)
+        lat_rad = math.radians(self.map_latitude)
+        radius_deg_lat = radius_km / 111.0  # 1 degree latitude ≈ 111 km
+        radius_deg_lon = radius_km / (111.0 * math.cos(lat_rad))  # Adjust for longitude
+        
+        for i in range(num_points):
+            angle = 2 * math.pi * i / num_points
+            point_lat = self.map_latitude + radius_deg_lat * math.sin(angle)
+            point_lon = self.map_longitude + radius_deg_lon * math.cos(angle)
+            circle_points.append((point_lat, point_lon))
+        
+        # Draw the circle as a polygon
+        try:
+            self.current_circle = self.map_widget.set_polygon(
+                circle_points,
+                fill_color="lightblue",
+                outline_color="blue",
+                border_width=2,
+                name="search_radius"
+            )
+        except Exception as e:
+            logger.warning(f"Could not draw radius circle: {e}")
     
     def on_search_clicked(self) -> None:
         """
@@ -376,6 +394,16 @@ class SearchPanel(ctk.CTkFrame):
             if "could not convert" in str(e):
                 raise ValueError("Invalid radius value. Must be a positive number (in kilometers).")
             raise
+
+        # Parse min years
+        min_years_text = self.min_years_entry.get().strip()
+        if min_years_text:
+            try:
+                criteria.min_years = int(min_years_text)
+                if criteria.min_years < 0:
+                    raise ValueError("Minimum years must be non-negative")
+            except ValueError:
+                raise ValueError("Invalid minimum years value. Must be an integer.")
         
         return criteria
     
@@ -424,17 +452,29 @@ class SearchPanel(ctk.CTkFrame):
         
         self.results_label.configure(text=f"Found {len(stations)} station(s)")
         
+        # Get currently locked dataset file from config
+        locked_file = self.app_state.project_controller.session_config.selected_dataset_file
+        
         # Display each station as a selectable button
         for i, station in enumerate(stations):
-            self.create_station_card(station, i)
+            is_locked = False
+            if locked_file:
+                # Check if this station matches the locked file
+                # The file is saved as {station_id}.csv
+                station_filename = f"{station.station_id}.csv"
+                if station_filename == locked_file:
+                    is_locked = True
+            
+            self.create_station_card(station, i, is_locked)
     
-    def create_station_card(self, station: StationMetadata, index: int) -> None:
+    def create_station_card(self, station: StationMetadata, index: int, is_locked: bool = False) -> None:
         """
         Create a card displaying station metadata with radio button selection.
         
         Args:
             station: StationMetadata to display
             index: Index in results list
+            is_locked: True if this is the currently locked dataset
         """
         # Create frame for station card with horizontal layout
         card = ctk.CTkFrame(self.results_scrollable)
@@ -447,64 +487,61 @@ class SearchPanel(ctk.CTkFrame):
             text="",
             variable=self.selected_station_var,
             value=station.station_id,
+            width=20, # Compact width
             command=lambda: self.on_station_selected(station)
         )
-        radio_button.grid(row=0, column=0, padx=(10, 5), pady=8)
+        radio_button.grid(row=0, column=0, padx=(5, 5), pady=8, sticky="n") # Reduced padding, align top
         
-        # Create horizontal layout for all info
+        # Info Frame (Vertical layout for multi-line text)
         info_frame = ctk.CTkFrame(card, fg_color="transparent")
-        info_frame.grid(row=0, column=1, padx=5, pady=8, sticky="ew")
-        info_frame.grid_columnconfigure(0, weight=0)  # Station ID
-        info_frame.grid_columnconfigure(1, weight=0)  # Separator
-        info_frame.grid_columnconfigure(2, weight=0)  # Location
-        info_frame.grid_columnconfigure(3, weight=0)  # Separator
-        info_frame.grid_columnconfigure(4, weight=0)  # Data range
-        info_frame.grid_columnconfigure(5, weight=1)  # Spacer
+        info_frame.grid(row=0, column=1, padx=0, pady=5, sticky="ew")
+        info_frame.grid_columnconfigure(0, weight=1)
         
-        # Station ID and Name (bold)
+        # Row 1: Station ID + Name + Status
+        header_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew")
+        
+        # ID and Name
         id_name_text = f"{station.station_id}"
         if station.name and station.name != station.station_id:
             id_name_text += f" - {station.name}"
-        
-        id_label = ctk.CTkLabel(
-            info_frame,
+            
+        header_label = ctk.CTkLabel(
+            header_frame,
             text=id_name_text,
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"), # Standard size
             anchor="w"
         )
-        id_label.grid(row=0, column=0, padx=(0, 10), sticky="w")
+        header_label.pack(side="left")
         
-        # Separator
-        sep1 = ctk.CTkLabel(info_frame, text="|", text_color="gray")
-        sep1.grid(row=0, column=1, padx=5)
-        
-        # Location (compact format)
-        location_text = f"Lat: {station.latitude:.4f}°, Lon: {station.longitude:.4f}°"
+        # Locked Status
+        if is_locked:
+            locked_label = ctk.CTkLabel(
+                header_frame,
+                text="[CURRENT DATASET]",
+                font=ctk.CTkFont(size=10, weight="bold"),
+                text_color="green"
+            )
+            locked_label.pack(side="left", padx=10)
+            
+        # Row 2: Location and Date Details (Compact, gray)
+        details_text = f"Lat: {station.latitude:.4f}°, Lon: {station.longitude:.4f}°"
         if station.elevation:
-            location_text += f", Elev: {station.elevation}m"
+            details_text += f", Elev: {station.elevation}m"
         
-        location_label = ctk.CTkLabel(
+        details_text += f"  |  Data: {station.start_date}-{station.end_date}"
+        if station.data_coverage is not None:
+             details_text += f" ({station.data_coverage*100:.0f}%)"
+             
+        details_label = ctk.CTkLabel(
             info_frame,
-            text=location_text,
+            text=details_text,
             font=ctk.CTkFont(size=11),
+            text_color="gray",
             anchor="w"
         )
-        location_label.grid(row=0, column=2, padx=(0, 10), sticky="w")
-        
-        # Separator
-        sep2 = ctk.CTkLabel(info_frame, text="|", text_color="gray")
-        sep2.grid(row=0, column=3, padx=5)
-        
-        # Data availability (compact format)
-        availability_text = f"Data: {station.start_date}-{station.end_date}"
-        availability_label = ctk.CTkLabel(
-            info_frame,
-            text=availability_text,
-            font=ctk.CTkFont(size=11),
-            anchor="w"
-        )
-        availability_label.grid(row=0, column=4, padx=(0, 10), sticky="w")
-    
+        details_label.grid(row=1, column=0, sticky="w", pady=(0, 0))
+
     def on_station_selected(self, station: StationMetadata) -> None:
         """
         Handle station selection via radio button.
@@ -579,40 +616,7 @@ class SearchPanel(ctk.CTkFrame):
         Args:
             result: Result object from download_station_data()
         """
-        if not result.success:
-            # Show error message
-            self.progress_label.configure(text="Download failed")
-            self.progress_bar.set(0)
-            # Re-enable download button
-            self.download_button.configure(state="normal")
-            messagebox.showerror("Download Failed", result.error)
-            return
-        
-        # Success - now calculate historical parameters
-        # Show indeterminate progress for calculation
-        self.progress_label.configure(text="Calculating parameters...")
-        self.progress_bar.configure(mode="indeterminate")
-        self.progress_bar.start()
-        
-        # Calculate parameters in background thread
-        def calculate_thread():
-            calc_result = self.data_controller.calculate_historical_parameters(result.value)
-            
-            # Handle result on main thread
-            self.after(0, lambda: self.handle_calculation_result(calc_result))
-        
-        threading.Thread(target=calculate_thread, daemon=True).start()
-    
-    def handle_calculation_result(self, result) -> None:
-        """
-        Handle parameter calculation result.
-        
-        This runs on the main thread to safely update UI.
-        
-        Args:
-            result: Result object from calculate_historical_parameters()
-        """
-        # Stop indeterminate progress and reset to determinate mode
+        # Stop indeterminate progress if running (though download uses determinate)
         self.progress_bar.stop()
         self.progress_bar.configure(mode="determinate")
         
@@ -620,25 +624,47 @@ class SearchPanel(ctk.CTkFrame):
         self.download_button.configure(state="normal")
         
         if not result.success:
-            # Show error but don't fail the download
-            self.progress_label.configure(text="Download complete (parameter calculation failed)")
-            self.progress_bar.set(1.0)
-            messagebox.showwarning(
-                "Parameter Calculation Failed",
-                f"Data downloaded successfully, but parameter calculation failed:\n\n{result.error}"
-            )
+            # Show error message
+            self.progress_label.configure(text="Download failed")
+            self.progress_bar.set(0)
+            messagebox.showerror("Download Failed", result.error)
             return
         
-        # Success - update app state on main thread to trigger observers safely
-        if result.value:
-            self.app_state.set_historical_params(result.value)
+        # Success
         
-        self.progress_label.configure(text="Download and analysis complete!")
+        # Update session config to lock this dataset
+        try:
+            config = self.app_state.project_controller.session_config
+            
+            # Extract metadata from result
+            if isinstance(result.value, dict) and 'metadata' in result.value:
+                metadata = result.value['metadata']
+                config.dataset_metadata = metadata
+                dataset_filename = metadata.get('filename')
+                config.selected_dataset_file = dataset_filename
+                logger.info(f"Dataset metadata saved: {metadata}")
+            else:
+                # Fallback for backward compatibility (though controller is updated)
+                dataset_filename = f"{self.selected_station.station_id}.csv"
+                config.selected_dataset_file = dataset_filename
+                logger.warning("No metadata in download result, using default filename")
+
+            config.save()
+            logger.info(f"Dataset locked to session: {dataset_filename}")
+            
+            # Refresh results to show new locked status
+            self.display_search_results(self.search_results)
+            
+        except Exception as e:
+            logger.error(f"Failed to update session config with locked dataset: {e}")
+        
+        self.progress_label.configure(text="Download complete!")
         self.progress_bar.set(1.0)
+        
         messagebox.showinfo(
             "Download Complete",
-            f"Successfully downloaded and analyzed data for station {self.selected_station.station_id}\n\n"
-            f"View the calculated parameters in the 'Parameters' tab."
+            f"Successfully downloaded data for station {self.selected_station.station_id}\n\n"
+            f"The CSV file has been saved to your project folder and set as the current dataset."
         )
     
     def on_state_change(self, state_key: str, new_value) -> None:

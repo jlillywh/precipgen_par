@@ -95,12 +95,55 @@ class ProjectController:
             # Initialize project structure
             self.initialize_project_structure(folder_path)
             
+            # Add to recent projects
+            self.session_config.add_recent_project(folder_path)
+            
             logger.info(f"Project folder set successfully: {folder_path}")
             return folder_path
             
         except Exception as e:
             logger.error(f"Error selecting project folder: {e}", exc_info=True)
             return None
+
+    def load_project_folder(self, folder_path: Path) -> bool:
+        """
+        Load a specific project folder path.
+        
+        Validates the folder and updates app state if valid.
+        Used for loading recent projects.
+        
+        Args:
+            folder_path: Path to the project folder
+            
+        Returns:
+            True if loaded successfully, False otherwise
+        """
+        try:
+            logger.info(f"Loading project folder: {folder_path}")
+            
+            # Validate the folder
+            is_valid, error_message = self.validate_folder(folder_path)
+            
+            if not is_valid:
+                logger.warning(f"Folder validation failed: {error_message}")
+                return False
+                
+            # Update app state and session config
+            self.app_state.set_project_folder(folder_path)
+            self.session_config.project_folder = folder_path
+            
+            # Add to recent projects (moves to top)
+            self.session_config.add_recent_project(folder_path)
+            
+            # Initialize project structure
+            self.initialize_project_structure(folder_path)
+            
+            logger.info(f"Project folder loaded successfully: {folder_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error loading project folder: {e}", exc_info=True)
+            return False
     
     def validate_folder(self, path: Path) -> Tuple[bool, Optional[str]]:
         """
@@ -170,20 +213,10 @@ class ProjectController:
         try:
             logger.info(f"Initializing project structure in: {path}")
             
-            # Define standard subdirectories
-            subdirs = [
-                'data',      # Downloaded GHCN data
-                'params',    # Calculated and exported parameters
-                'exports',   # Final exported parameter files
-            ]
+            # Flat structure - no subdirectories needed
+            # All files will be saved directly in the project folder
             
-            # Create subdirectories if they don't exist
-            for subdir in subdirs:
-                subdir_path = path / subdir
-                subdir_path.mkdir(parents=True, exist_ok=True)
-                logger.debug(f"Created/verified subdirectory: {subdir_path}")
-            
-            logger.info("Project structure initialized successfully")
+            logger.info("Project structure initialized successfully (using flat structure)")
             
         except PermissionError as e:
             logger.error(f"Permission denied creating project structure: {e}", exc_info=True)

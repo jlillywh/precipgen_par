@@ -138,7 +138,7 @@ class TestParameterCalculations(unittest.TestCase):
         dates = pd.date_range('2020-01-01', periods=10, freq='D')
         bad_data = pd.DataFrame({'TEMP': range(10)}, index=dates)
         with self.assertRaises((KeyError, AttributeError)):
-            calculate_params(bad_data)
+            calculate_params(bad_data, filter_incomplete_years=False)
     
     def test_calculate_params_invalid_dates(self):
         """Test parameter calculation with invalid date formats"""
@@ -250,7 +250,7 @@ class TestDataValidation(unittest.TestCase):
             'PRCP': [1000.0] * 50 + [0.0] * 50  # Extreme rainfall amounts
         }, index=dates)
         
-        result = calculate_params(extreme_data)
+        result = calculate_params(extreme_data, filter_incomplete_years=False)
         self.assertIsNotNone(result)
         # Check that parameters are still reasonable (no inf/nan values)
         for col in result.columns:

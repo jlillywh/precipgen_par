@@ -50,14 +50,12 @@ precipgen_par/
 │   │   ├── views/        # UI components (6 tabs)
 │   │   ├── controllers/  # Business logic
 │   │   └── models/       # State management
-│   └── web/               # Streamlit web app
 ├── scripts/                # Executable scripts
 ├── tests/                  # Test suite (105+ tests)
 ├── docs/                   # Documentation
 │   ├── guides/            # User guides
 │   ├── deployment/        # Deployment docs
 │   └── api/               # API documentation
-├── precipgen-web.py       # Web interface launcher
 ├── precipgen-cli.py       # CLI launcher
 ├── precipgen-menu.py      # Interactive menu launcher
 ├── build_executable.bat   # Build Windows executable
@@ -194,7 +192,6 @@ Key Parameters Generated:
 
 - [Getting Started Guide](docs/guides/GETTING_STARTED.md) - Complete setup and usage instructions
 - [Quick Reference](docs/guides/QUICK_REFERENCE.md) - Command reference and examples
-- [Streamlit Guide](docs/guides/STREAMLIT_GUIDE.md) - Web interface documentation
 - [Data Filling Guide](docs/guides/FILL_DATA_GUIDE.md) - Gap filling documentation
 - [Deployment Guide](docs/deployment/DEPLOYMENT.md) - Deployment instructions
 
