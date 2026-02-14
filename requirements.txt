@@ -7,3 +7,5 @@ tqdm>=4.64.0
 customtkinter>=5.0.0
 hypothesis>=6.0.0
 pyinstaller>=5.0.0
+tkintermapview>=1.29
+openpyxl>=3.0.0

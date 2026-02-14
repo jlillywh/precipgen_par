@@ -1,7 +1,8 @@
 """
 Upload panel view component for PrecipGen Desktop.
 
-This module provides the UI for uploading existing precipitation CSV files.
+This module provides the UI for uploading existing precipitation time series files
+from CSV or Excel formats.
 """
 
 import logging
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class UploadPanel(ctk.CTkFrame):
     """
-    UI component for uploading precipitation CSV files.
+    UI component for uploading precipitation time series files (CSV or Excel).
     
     Handles file selection, parsing with flexible format detection,
     unit conversion, and parameter calculation.
@@ -74,7 +75,7 @@ class UploadPanel(ctk.CTkFrame):
         # Instructions
         instructions = ctk.CTkLabel(
             self,
-            text="Upload a CSV file with precipitation time series data.\n"
+            text="Upload precipitation time series data from CSV or Excel files.\n"
                  "The file should contain a date column and a precipitation column.\n"
                  "Metadata rows at the top of the file will be automatically detected.",
             font=ctk.CTkFont(size=12),
@@ -108,9 +109,9 @@ class UploadPanel(ctk.CTkFrame):
         # Select file button
         self.select_button = ctk.CTkButton(
             frame,
-            text="Select CSV File",
+            text="Select Time Series File",
             command=self.on_select_file_clicked,
-            width=150
+            width=180
         )
         self.select_button.grid(row=0, column=0, padx=10, pady=15)
         
@@ -191,9 +192,11 @@ class UploadPanel(ctk.CTkFrame):
         """
         # Open file dialog
         file_path = filedialog.askopenfilename(
-            title="Select Precipitation CSV File",
+            title="Select Precipitation Time Series File",
             filetypes=[
+                ("Supported files", "*.csv *.xlsx *.xls"),
                 ("CSV files", "*.csv"),
+                ("Excel files", "*.xlsx *.xls"),
                 ("All files", "*.*")
             ]
         )
@@ -256,7 +259,7 @@ class UploadPanel(ctk.CTkFrame):
         # Show progress
         self.progress_bar.configure(mode="indeterminate")
         self.progress_bar.start()
-        self.progress_label.configure(text="Parsing CSV file...")
+        self.progress_label.configure(text="Parsing file...")
         
         # Process in background thread
         def process_thread():
@@ -267,15 +270,34 @@ class UploadPanel(ctk.CTkFrame):
     
     def parse_and_process_csv(self) -> Tuple[bool, Optional[pd.DataFrame], Optional[str]]:
         """
-        Parse CSV file with flexible format detection.
+        Parse CSV or Excel file with flexible format detection.
         
         Returns:
             Tuple of (success, dataframe, error_message)
         """
         try:
-            # Read the file
-            with open(self.selected_file, 'r') as f:
-                lines = f.readlines()
+            file_ext = self.selected_file.suffix.lower()
+            
+            # Determine file type and read accordingly
+            if file_ext in ['.xlsx', '.xls']:
+                # Excel file - read first sheet
+                logger.info(f"Reading Excel file: {self.selected_file}")
+                df_raw = pd.read_excel(self.selected_file, sheet_name=0)
+                
+                # Convert to list of lines for unified processing
+                lines = []
+                for idx, row in df_raw.iterrows():
+                    line = ','.join([str(val) for val in row.values])
+                    lines.append(line)
+                
+            elif file_ext == '.csv':
+                # CSV file - read as text
+                logger.info(f"Reading CSV file: {self.selected_file}")
+                with open(self.selected_file, 'r') as f:
+                    lines = f.readlines()
+            else:
+                return False, None, f"Unsupported file type: {file_ext}\n\n" \
+                                   "Please use CSV (.csv) or Excel (.xlsx, .xls) files."
             
             # Find the header row (contains date and precipitation columns)
             header_row_idx = None
@@ -315,11 +337,14 @@ class UploadPanel(ctk.CTkFrame):
                         break
             
             if header_row_idx is None:
-                return False, None, "Could not find date and precipitation columns in CSV file.\n\n" \
+                return False, None, "Could not find date and precipitation columns in file.\n\n" \
                                    "Expected column names like: DATE, PRCP, Precipitation, etc."
             
             # Read the data starting from the header row
-            df = pd.read_csv(self.selected_file, skiprows=header_row_idx)
+            if file_ext in ['.xlsx', '.xls']:
+                df = pd.read_excel(self.selected_file, sheet_name=0, skiprows=header_row_idx)
+            else:
+                df = pd.read_csv(self.selected_file, skiprows=header_row_idx)
             
             # Get actual column names
             date_col_name = df.columns[date_col]
@@ -355,8 +380,8 @@ class UploadPanel(ctk.CTkFrame):
             return True, df, None
             
         except Exception as e:
-            logger.error(f"Error parsing CSV: {e}", exc_info=True)
-            return False, None, f"Error parsing CSV file:\n\n{str(e)}"
+            logger.error(f"Error parsing file: {e}", exc_info=True)
+            return False, None, f"Error parsing file:\n\n{str(e)}"
     
     def handle_process_result(self, result: Tuple[bool, Optional[pd.DataFrame], Optional[str]]) -> None:
         """
