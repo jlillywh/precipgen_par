@@ -116,6 +116,7 @@ demo_output/
 # pytest
 .pytest_cache/
 .coverage
+.hypothesis/
 
 # mypy
 .mypy_cache/
