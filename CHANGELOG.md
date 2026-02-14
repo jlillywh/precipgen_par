@@ -5,45 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - 2026-02-13
-
-### Added
-- Complete GUI architecture refactor with clean 6-tab MVC structure
-- New Home tab for session initialization and working directory management
-- New Basic Analysis tab for descriptive statistics and data quality metrics
-- New Markov Analysis tab for parameter calculation
-- New Trend Analysis tab for seasonal trend detection
-- Monthly statistics dialog with progressive disclosure (button-triggered)
-- Station year range display in search dropdown (start-end years)
-- Station ID appended to all exported filenames for better organization
-- Comprehensive test suite with 105+ unit tests and integration tests
-- GHCN metadata row detection and automatic skipping in CSV parser
-
-### Changed
-- Restructured GUI from 4 tabs to 6 focused tabs following single-responsibility principle
-- Moved tabs to top of window for cleaner navigation
-- Replaced radio button station selector with dropdown in Search page
-- Separated data download from parameter calculation (download-only workflow)
-- Split parameters panel into three specialized analysis panels
-- Removed duplicate Home panel content
-- Updated all analysis panels to use consistent MVC pattern
-- Improved CSV file handling with automatic format detection
-- Enhanced error messages with actionable guidance
-
-### Fixed
-- Fixed argument order bug in analysis panel initialization
-- Fixed GHCN CSV parsing errors with metadata rows
-- Fixed panel initialization to properly pass app_state and controllers
-- Fixed tab layout to eliminate duplicate content
-- Removed artificial 0.998 cap on gamma distribution alpha parameter for statistically correct precipitation modeling
-
-### Technical
-- Implemented strict MVC separation: views (UI), controllers (logic), models (state)
-- Added observer pattern for state management across components
-- Flat file organization in working directory (no subdirectories)
-- Standardized CSV output formats across all analysis types
-- Progressive disclosure UI pattern for detailed results
-
 ## [1.2.2] - 2026-02-12
 
 ### Fixed

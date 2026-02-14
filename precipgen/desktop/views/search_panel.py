@@ -1,7 +1,8 @@
 """
 Search panel view component for PrecipGen Desktop.
 
-This module provides the UI for GHCN station search and data download.
+This module provides the UI for GHCN station search and data download,
+featuring an interactive map for location selection.
 """
 
 import logging
@@ -9,6 +10,7 @@ import customtkinter as ctk
 from typing import List, Optional
 from tkinter import messagebox
 import threading
+import tkintermapview
 
 from precipgen.desktop.controllers.data_controller import (
     DataController,
@@ -60,6 +62,12 @@ class SearchPanel(ctk.CTkFrame):
         # Radio button variable for station selection
         self.selected_station_var = ctk.StringVar(value="")
         
+        # Map state
+        self.current_marker = None
+        self.current_circle = None
+        self.map_latitude: Optional[float] = None
+        self.map_longitude: Optional[float] = None
+        
         # Setup the panel layout
         self.setup_ui()
         
@@ -99,57 +107,81 @@ class SearchPanel(ctk.CTkFrame):
     
     def create_search_frame(self) -> ctk.CTkFrame:
         """
-        Create search interface with input fields.
+        Create search interface with interactive map.
         
         Returns:
-            Frame containing search input fields and search button
+            Frame containing map widget and search controls
         """
         frame = ctk.CTkFrame(self)
-        frame.grid_columnconfigure(1, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_rowconfigure(1, weight=1)
         
-        # Location search (latitude/longitude/radius)
-        row = 0
-        
-        # Latitude
-        ctk.CTkLabel(frame, text="Latitude:").grid(
-            row=row, column=0, padx=10, pady=5, sticky="w"
+        # Instructions
+        instructions = ctk.CTkLabel(
+            frame,
+            text="Click on the map to select a location, then set the search radius and click Search.",
+            font=ctk.CTkFont(size=12),
+            text_color="gray"
         )
-        self.lat_entry = ctk.CTkEntry(frame, placeholder_text="e.g., 39.05")
-        self.lat_entry.grid(row=row, column=1, padx=10, pady=5, sticky="ew")
+        instructions.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
         
-        row += 1
+        # Map widget
+        self.map_widget = tkintermapview.TkinterMapView(frame, width=800, height=400, corner_radius=10)
+        self.map_widget.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
         
-        # Longitude
-        ctk.CTkLabel(frame, text="Longitude:").grid(
-            row=row, column=0, padx=10, pady=5, sticky="w"
+        # Set initial position (center of USA)
+        self.map_widget.set_position(39.8283, -98.5795)
+        self.map_widget.set_zoom(4)
+        
+        # Add click handler
+        self.map_widget.add_left_click_map_command(self.on_map_click)
+        
+        # Controls frame (below map)
+        controls_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        controls_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
+        controls_frame.grid_columnconfigure(1, weight=1)
+        
+        # Coordinate display
+        coord_frame = ctk.CTkFrame(controls_frame)
+        coord_frame.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        
+        ctk.CTkLabel(coord_frame, text="Selected Location:", font=ctk.CTkFont(weight="bold")).grid(
+            row=0, column=0, padx=5, pady=5
         )
-        self.lon_entry = ctk.CTkEntry(frame, placeholder_text="e.g., -122.33 (negative for west)")
-        self.lon_entry.grid(row=row, column=1, padx=10, pady=5, sticky="ew")
-        
-        row += 1
-        
-        # Radius
-        ctk.CTkLabel(frame, text="Radius (km):").grid(
-            row=row, column=0, padx=10, pady=5, sticky="w"
+        self.coord_label = ctk.CTkLabel(
+            coord_frame,
+            text="Click on map to select",
+            font=ctk.CTkFont(size=12),
+            text_color="gray"
         )
-        self.radius_entry = ctk.CTkEntry(frame, placeholder_text="e.g., 50")
-        self.radius_entry.grid(row=row, column=1, padx=10, pady=5, sticky="ew")
+        self.coord_label.grid(row=0, column=1, padx=5, pady=5)
         
-        row += 1
+        # Radius control
+        radius_frame = ctk.CTkFrame(controls_frame)
+        radius_frame.grid(row=0, column=1, padx=5, pady=5, sticky="e")
+        
+        ctk.CTkLabel(radius_frame, text="Search Radius (km):").grid(
+            row=0, column=0, padx=5, pady=5
+        )
+        self.radius_entry = ctk.CTkEntry(radius_frame, placeholder_text="e.g., 50", width=100)
+        self.radius_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.radius_entry.insert(0, "50")  # Default value
+        
+        # Bind radius change to update circle
+        self.radius_entry.bind("<KeyRelease>", self.on_radius_changed)
         
         # Search button
         self.search_button = ctk.CTkButton(
             frame,
             text="Search Stations",
-            command=self.on_search_clicked
+            command=self.on_search_clicked,
+            height=40
         )
-        self.search_button.grid(row=row, column=0, columnspan=2, padx=10, pady=15)
-        
-        row += 1
+        self.search_button.grid(row=3, column=0, padx=10, pady=10)
         
         # Search progress indicator
         self.search_progress = ctk.CTkProgressBar(frame)
-        self.search_progress.grid(row=row, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
+        self.search_progress.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="ew")
         self.search_progress.set(0)
         self.search_progress.grid_remove()  # Hide initially
         
@@ -215,6 +247,70 @@ class SearchPanel(ctk.CTkFrame):
         
         return frame
     
+    def on_map_click(self, coords) -> None:
+        """
+        Handle map click event.
+        
+        Args:
+            coords: Tuple of (latitude, longitude)
+        """
+        lat, lon = coords
+        self.map_latitude = lat
+        self.map_longitude = lon
+        
+        # Update coordinate display
+        self.coord_label.configure(
+            text=f"Lat: {lat:.4f}°, Lon: {lon:.4f}°",
+            text_color=("gray10", "gray90")
+        )
+        
+        # Remove old marker if exists
+        if self.current_marker:
+            self.current_marker.delete()
+        
+        # Add new marker
+        self.current_marker = self.map_widget.set_marker(lat, lon, text="Search Location")
+        
+        # Update radius circle
+        self.update_radius_circle()
+        
+        logger.info(f"Map location selected: {lat:.4f}, {lon:.4f}")
+    
+    def on_radius_changed(self, event=None) -> None:
+        """
+        Handle radius entry change to update circle on map.
+        """
+        self.update_radius_circle()
+    
+    def update_radius_circle(self) -> None:
+        """
+        Update the radius circle on the map based on current radius value.
+        """
+        if self.map_latitude is None or self.map_longitude is None:
+            return
+        
+        # Get radius value
+        try:
+            radius_km = float(self.radius_entry.get().strip())
+            if radius_km <= 0:
+                return
+        except (ValueError, AttributeError):
+            return
+        
+        # Remove old circle if exists
+        if self.current_circle:
+            self.current_circle.delete()
+        
+        # Add new circle (radius in meters for the API)
+        self.current_circle = self.map_widget.set_circle(
+            self.map_latitude,
+            self.map_longitude,
+            radius_km * 1000,  # Convert km to meters
+            color="blue",
+            fill_color="lightblue",
+            border_width=2
+        )
+    
     def on_search_clicked(self) -> None:
         """
         Handle search button click.
@@ -248,7 +344,7 @@ class SearchPanel(ctk.CTkFrame):
     
     def parse_search_criteria(self) -> SearchCriteria:
         """
-        Parse and validate search input fields.
+        Parse and validate search input from map and radius field.
         
         Returns:
             SearchCriteria object with validated parameters
@@ -258,44 +354,28 @@ class SearchPanel(ctk.CTkFrame):
         """
         criteria = SearchCriteria()
         
-        # Parse latitude
-        lat_text = self.lat_entry.get().strip()
-        if lat_text:
-            try:
-                criteria.latitude = float(lat_text)
-                if not -90 <= criteria.latitude <= 90:
-                    raise ValueError("Latitude must be between -90 and 90")
-            except ValueError:
-                raise ValueError("Invalid latitude value. Must be a number between -90 and 90.")
+        # Check if location is selected on map
+        if self.map_latitude is None or self.map_longitude is None:
+            raise ValueError("Please click on the map to select a search location")
         
-        # Parse longitude
-        lon_text = self.lon_entry.get().strip()
-        if lon_text:
-            try:
-                criteria.longitude = float(lon_text)
-                if not -180 <= criteria.longitude <= 180:
-                    raise ValueError("Longitude must be between -180 and 180")
-            except ValueError:
-                raise ValueError("Invalid longitude value. Must be a number between -180 and 180.\n\n"
-                               "Note: Western longitudes (like Seattle, USA) should be negative.\n"
-                               "Example: Seattle is at -122.33, not 122.33")
+        criteria.latitude = self.map_latitude
+        criteria.longitude = self.map_longitude
         
         # Parse radius
         radius_text = self.radius_entry.get().strip()
-        if radius_text:
-            try:
-                criteria.radius_km = float(radius_text)
-                if criteria.radius_km <= 0:
-                    raise ValueError("Radius must be positive")
-                if criteria.radius_km > 1000:
-                    raise ValueError("Radius must be 1000 km or less")
-            except ValueError:
-                raise ValueError("Invalid radius value. Must be a positive number (in kilometers).")
+        if not radius_text:
+            raise ValueError("Please enter a search radius")
         
-        # Check that if any location field is provided, all are provided
-        location_fields = [criteria.latitude, criteria.longitude, criteria.radius_km]
-        if any(f is not None for f in location_fields) and not all(f is not None for f in location_fields):
-            raise ValueError("Please provide latitude, longitude, AND radius for location search")
+        try:
+            criteria.radius_km = float(radius_text)
+            if criteria.radius_km <= 0:
+                raise ValueError("Radius must be positive")
+            if criteria.radius_km > 1000:
+                raise ValueError("Radius must be 1000 km or less")
+        except ValueError as e:
+            if "could not convert" in str(e):
+                raise ValueError("Invalid radius value. Must be a positive number (in kilometers).")
+            raise
         
         return criteria
     
