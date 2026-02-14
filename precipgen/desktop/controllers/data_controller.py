@@ -464,14 +464,14 @@ class DataController:
             # Save to temporary location first
             ghcn_data.save_to_csv(str(temp_file))
             
-            # Move to project folder
-            project_data_dir = self.app_state.project_folder / 'data'
-            project_data_dir.mkdir(parents=True, exist_ok=True)
-            
-            final_file = project_data_dir / f"{station.station_id}_data.csv"
+            # Move to project folder (flat structure - no subdirectories)
+            final_file = self.app_state.project_folder / f"{station.station_id}.csv"
             shutil.move(str(temp_file), str(final_file))
             
             logger.info(f"Data saved to {final_file}")
+            
+            # Update available stations list
+            self._update_available_stations()
             
             # Update station metadata with actual values
             station.name = ghcn_data.get_name()
@@ -606,6 +606,306 @@ class DataController:
                     
         except Exception as e:
             logger.error(f"Error during temp file cleanup: {e}")
+    
+    def import_custom_data(
+        self,
+        filepath: Path,
+        station_name: str,
+        unit: str,
+        date_col: str,
+        prcp_col: str
+    ) -> Result:
+        """
+        Import custom precipitation CSV file and save in standardized format.
+        
+        This method:
+        1. Reads the CSV file
+        2. Locates the first row with a valid date in the date column
+        3. Parses data from that row onward (skipping metadata rows)
+        4. Converts units if necessary (inches → millimeters)
+        5. Saves as CUSTOM_{station_name}.csv in working directory
+        6. Updates app_state.available_stations
+        
+        Args:
+            filepath: Path to the CSV file to import
+            station_name: User-specified station identifier
+            unit: Unit of precipitation values ("mm" or "in")
+            date_col: Name of the date column
+            prcp_col: Name of the precipitation column
+        
+        Returns:
+            Result object with Path to saved file on success, error message on failure
+        """
+        if not self.app_state.has_project_folder():
+            return Result(
+                success=False,
+                error="No project folder selected. Please select a working directory first."
+            )
+        
+        try:
+            logger.info(f"Importing custom data from {filepath}")
+            logger.info(f"Station name: {station_name}, Unit: {unit}, Date col: {date_col}, Prcp col: {prcp_col}")
+            
+            # Read the CSV file
+            df = pd.read_csv(filepath)
+            
+            # Check if specified columns exist
+            if date_col not in df.columns:
+                return Result(
+                    success=False,
+                    error=f"Column '{date_col}' not found in CSV file.\n\nAvailable columns: {', '.join(df.columns)}"
+                )
+            
+            if prcp_col not in df.columns:
+                return Result(
+                    success=False,
+                    error=f"Column '{prcp_col}' not found in CSV file.\n\nAvailable columns: {', '.join(df.columns)}"
+                )
+            
+            # Find the first row with a valid date
+            first_valid_row = None
+            for idx, value in enumerate(df[date_col]):
+                try:
+                    pd.to_datetime(value)
+                    first_valid_row = idx
+                    break
+                except (ValueError, TypeError):
+                    continue
+            
+            if first_valid_row is None:
+                return Result(
+                    success=False,
+                    error=f"No valid dates found in column '{date_col}'.\n\nExpected formats: YYYY-MM-DD, MM/DD/YYYY, etc."
+                )
+            
+            # Skip metadata rows and parse from first valid date row onward
+            if first_valid_row > 0:
+                logger.info(f"Skipping {first_valid_row} metadata rows")
+                df = df.iloc[first_valid_row:].reset_index(drop=True)
+            
+            # Extract and rename columns
+            df = df[[date_col, prcp_col]].copy()
+            df.columns = ['DATE', 'PRCP']
+            
+            # Convert DATE to datetime
+            df['DATE'] = pd.to_datetime(df['DATE'])
+            
+            # Convert PRCP to numeric, handling missing values
+            df['PRCP'] = pd.to_numeric(df['PRCP'], errors='coerce')
+            
+            # Handle missing value indicators (-999, "NA", etc.)
+            df.loc[df['PRCP'] < -900, 'PRCP'] = pd.NA
+            
+            # Convert units if necessary
+            if unit.lower() == 'in':
+                logger.info("Converting precipitation from inches to millimeters")
+                df['PRCP'] = df['PRCP'] * 25.4
+            
+            # Remove rows with missing dates or precipitation
+            initial_rows = len(df)
+            df = df.dropna()
+            removed_rows = initial_rows - len(df)
+            if removed_rows > 0:
+                logger.info(f"Removed {removed_rows} rows with missing values")
+            
+            # Sort by date
+            df = df.sort_values('DATE').reset_index(drop=True)
+            
+            # Validate we have data
+            if len(df) == 0:
+                return Result(
+                    success=False,
+                    error="No valid data rows found after processing."
+                )
+            
+            # Save to working directory with CUSTOM_ prefix
+            output_filename = f"CUSTOM_{station_name}.csv"
+            output_path = self.app_state.project_folder / output_filename
+            
+            df.to_csv(output_path, index=False)
+            logger.info(f"Saved custom data to {output_path} ({len(df)} rows)")
+            
+            # Update available stations list
+            self._update_available_stations()
+            
+            return Result(
+                success=True,
+                value=output_path
+            )
+            
+        except Exception as e:
+            logger.error(f"Error importing custom data: {e}", exc_info=True)
+            return Result(
+                success=False,
+                error=f"Error importing custom data:\n\n{str(e)}"
+            )
+    
+    def get_available_stations(self) -> List[str]:
+        """
+        List all CSV files in the working directory.
+        
+        Returns:
+            List of CSV filenames (e.g., ['GHCN001.csv', 'CUSTOM_MyStation.csv'])
+        """
+        if not self.app_state.has_project_folder():
+            return []
+        
+        try:
+            csv_files = []
+            for file in self.app_state.project_folder.glob("*.csv"):
+                if file.is_file():
+                    csv_files.append(file.name)
+            
+            # Sort alphabetically for consistent ordering
+            csv_files.sort()
+            return csv_files
+        except Exception as e:
+            logger.error(f"Error listing available stations: {e}")
+            return []
+    def import_custom_data(
+            self,
+            filepath: Path,
+            station_name: str,
+            unit: str,
+            date_col: str,
+            prcp_col: str
+        ) -> Result:
+            """
+            Import custom precipitation CSV file and save in standardized format.
+
+            This method:
+            1. Reads the CSV file
+            2. Locates the first row with a valid date in the date column
+            3. Parses data from that row onward (skipping metadata rows)
+            4. Converts units if necessary (inches → millimeters)
+            5. Saves as CUSTOM_{station_name}.csv in working directory
+            6. Updates app_state.available_stations
+
+            Args:
+                filepath: Path to the CSV file to import
+                station_name: User-specified station identifier
+                unit: Unit of precipitation values ("mm" or "in")
+                date_col: Name of the date column
+                prcp_col: Name of the precipitation column
+
+            Returns:
+                Result object with Path to saved file on success, error message on failure
+            """
+            if not self.app_state.has_project_folder():
+                return Result(
+                    success=False,
+                    error="No project folder selected. Please select a working directory first."
+                )
+
+            try:
+                logger.info(f"Importing custom data from {filepath}")
+                logger.info(f"Station name: {station_name}, Unit: {unit}, Date col: {date_col}, Prcp col: {prcp_col}")
+
+                # Read the CSV file
+                df = pd.read_csv(filepath)
+
+                # Check if specified columns exist
+                if date_col not in df.columns:
+                    return Result(
+                        success=False,
+                        error=f"Column '{date_col}' not found in CSV file.\n\nAvailable columns: {', '.join(df.columns)}"
+                    )
+
+                if prcp_col not in df.columns:
+                    return Result(
+                        success=False,
+                        error=f"Column '{prcp_col}' not found in CSV file.\n\nAvailable columns: {', '.join(df.columns)}"
+                    )
+
+                # Find the first row with a valid date
+                first_valid_row = None
+                for idx, value in enumerate(df[date_col]):
+                    try:
+                        pd.to_datetime(value)
+                        first_valid_row = idx
+                        break
+                    except (ValueError, TypeError):
+                        continue
+
+                if first_valid_row is None:
+                    return Result(
+                        success=False,
+                        error=f"No valid dates found in column '{date_col}'.\n\nExpected formats: YYYY-MM-DD, MM/DD/YYYY, etc."
+                    )
+
+                # Skip metadata rows and parse from first valid date row onward
+                if first_valid_row > 0:
+                    logger.info(f"Skipping {first_valid_row} metadata rows")
+                    df = df.iloc[first_valid_row:].reset_index(drop=True)
+
+                # Extract and rename columns
+                df = df[[date_col, prcp_col]].copy()
+                df.columns = ['DATE', 'PRCP']
+
+                # Convert DATE to datetime
+                df['DATE'] = pd.to_datetime(df['DATE'])
+
+                # Convert PRCP to numeric, handling missing values
+                df['PRCP'] = pd.to_numeric(df['PRCP'], errors='coerce')
+
+                # Handle missing value indicators (-999, "NA", etc.)
+                df.loc[df['PRCP'] < -900, 'PRCP'] = pd.NA
+
+                # Convert units if necessary
+                if unit.lower() == 'in':
+                    logger.info("Converting precipitation from inches to millimeters")
+                    df['PRCP'] = df['PRCP'] * 25.4
+
+                # Remove rows with missing dates or precipitation
+                initial_rows = len(df)
+                df = df.dropna()
+                removed_rows = initial_rows - len(df)
+                if removed_rows > 0:
+                    logger.info(f"Removed {removed_rows} rows with missing values")
+
+                # Sort by date
+                df = df.sort_values('DATE').reset_index(drop=True)
+
+                # Validate we have data
+                if len(df) == 0:
+                    return Result(
+                        success=False,
+                        error="No valid data rows found after processing."
+                    )
+
+                # Save to working directory with CUSTOM_ prefix
+                output_filename = f"CUSTOM_{station_name}.csv"
+                output_path = self.app_state.project_folder / output_filename
+
+                df.to_csv(output_path, index=False)
+                logger.info(f"Saved custom data to {output_path} ({len(df)} rows)")
+
+                # Update available stations list
+                self._update_available_stations()
+
+                return Result(
+                    success=True,
+                    value=output_path
+                )
+
+            except Exception as e:
+                logger.error(f"Error importing custom data: {e}", exc_info=True)
+                return Result(
+                    success=False,
+                    error=f"Error importing custom data:\n\n{str(e)}"
+                )
+
+    
+    def _update_available_stations(self) -> None:
+        """
+        Update app_state.available_stations with current CSV files in working directory.
+        
+        This method should be called after download or import operations to keep
+        the available stations list synchronized with the file system.
+        """
+        stations = self.get_available_stations()
+        self.app_state.set_available_stations(stations)
+        logger.info(f"Updated available stations: {len(stations)} files found")
     
     def calculate_historical_parameters(self, data: pd.DataFrame) -> Result:
         """

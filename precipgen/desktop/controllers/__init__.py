@@ -12,9 +12,11 @@ from precipgen.desktop.controllers.data_controller import (
     SearchCriteria,
     Result
 )
-from precipgen.desktop.controllers.calibration_controller import (
-    CalibrationController,
-    AdjustedParameters
+from precipgen.desktop.controllers.analysis_controller import (
+    AnalysisController,
+    BasicAnalysisResults,
+    MarkovParameters,
+    TrendAnalysisResults
 )
 
 __all__ = [
@@ -23,6 +25,8 @@ __all__ = [
     'StationMetadata',
     'SearchCriteria',
     'Result',
-    'CalibrationController',
-    'AdjustedParameters'
+    'AnalysisController',
+    'BasicAnalysisResults',
+    'MarkovParameters',
+    'TrendAnalysisResults'
 ]

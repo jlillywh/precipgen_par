@@ -1,18 +1,22 @@
 """
 Main application window for PrecipGen Desktop.
 
-This module provides the top-level window with basic layout structure.
+This module provides the top-level window with tab-based navigation structure.
+Implements a 6-tab workflow: Home, Search, Upload, Basic Analysis, Markov Analysis,
+and Trend Analysis. Manages tab state based on session initialization and coordinates
+between panel components following the MVC pattern.
 """
 
 import logging
 import customtkinter as ctk
 from typing import Any, Dict, Optional
 from precipgen.desktop.models.app_state import AppState
-from precipgen.desktop.views.project_panel import ProjectPanel
+from precipgen.desktop.views.home_panel import HomePanel
 from precipgen.desktop.views.search_panel import SearchPanel
 from precipgen.desktop.views.upload_panel import UploadPanel
-from precipgen.desktop.views.parameters_panel import ParametersPanel
-from precipgen.desktop.views.calibration_panel import CalibrationPanel
+from precipgen.desktop.views.basic_analysis_panel import BasicAnalysisPanel
+from precipgen.desktop.views.markov_analysis_panel import MarkovAnalysisPanel
+from precipgen.desktop.views.trend_analysis_panel import TrendAnalysisPanel
 
 
 # Configure logging
@@ -75,44 +79,41 @@ class MainWindow(ctk.CTk):
         """
         Configure window layout with panels.
         
-        Creates the layout structure with ProjectPanel for folder management
-        and a tabbed interface for Data and Calibration panels.
+        Creates a tabbed interface for the 6-tab workflow: Home, Search, Upload, 
+        Basic Analysis, Markov Analysis, and Trend Analysis.
+        The Home tab contains the working directory management.
         """
-        # Configure grid layout (2 rows, 1 column)
-        self.grid_rowconfigure(1, weight=1)
+        # Configure grid layout (1 row, 1 column - tabs fill entire window)
+        self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
         
-        # Create ProjectPanel for project folder management
-        # Only create if we have a project_controller
+        # Create tabbed interface for the 6-tab workflow at the top
+        self.tabview = ctk.CTkTabview(self, corner_radius=0)
+        self.tabview.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        
+        # Add tabs in workflow order
+        self.tabview.add("Home")
+        self.tabview.add("Search")
+        self.tabview.add("Upload")
+        self.tabview.add("Basic Analysis")
+        self.tabview.add("Markov Analysis")
+        self.tabview.add("Trend Analysis")
+        
+        # Create Home panel (working directory management)
         if 'project_controller' in self.controllers:
-            self.project_panel = ProjectPanel(
-                self,
+            self.home_panel = HomePanel(
+                self.tabview.tab("Home"),
                 self.controllers['project_controller'],
                 self.app_state
             )
-            self.project_panel.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
+            self.home_panel.pack(fill="both", expand=True)
         else:
-            # Fallback to basic header if controller not available
-            self.header_frame = ctk.CTkFrame(self, height=60, corner_radius=0)
-            self.header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
-            self.header_frame.grid_columnconfigure(0, weight=1)
-            
-            self.project_label = ctk.CTkLabel(
-                self.header_frame,
-                text="Project: No project folder selected",
-                font=ctk.CTkFont(size=14)
+            home_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Home"),
+                text="Project controller not available",
+                font=ctk.CTkFont(size=16)
             )
-            self.project_label.grid(row=0, column=0, padx=20, pady=15, sticky="w")
-        
-        # Create tabbed interface for Data and Calibration panels
-        self.tabview = ctk.CTkTabview(self, corner_radius=0)
-        self.tabview.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
-        
-        # Add tabs for clear workflow
-        self.tabview.add("Search")
-        self.tabview.add("Upload")
-        self.tabview.add("Parameters")
-        self.tabview.add("Calibration")
+            home_placeholder.pack(padx=20, pady=20)
         
         # Create Search panel (station search and download)
         if 'data_controller' in self.controllers:
@@ -146,53 +147,104 @@ class MainWindow(ctk.CTk):
             )
             upload_placeholder.pack(padx=20, pady=20)
         
-        # Create Parameters panel (view calculated parameters)
-        if 'data_controller' in self.controllers and 'calibration_controller' in self.controllers:
-            self.parameters_panel = ParametersPanel(
-                self.tabview.tab("Parameters"),
+        # Create Basic Analysis panel
+        if 'analysis_controller' in self.controllers:
+            self.basic_analysis_panel = BasicAnalysisPanel(
+                self.tabview.tab("Basic Analysis"),
                 self.app_state,
-                self.controllers['calibration_controller']
+                self.controllers['analysis_controller']
             )
-            self.parameters_panel.pack(fill="both", expand=True)
+            self.basic_analysis_panel.pack(fill="both", expand=True)
         else:
-            params_placeholder = ctk.CTkLabel(
-                self.tabview.tab("Parameters"),
-                text="Parameters not available",
+            basic_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Basic Analysis"),
+                text="Analysis controller not available",
                 font=ctk.CTkFont(size=16)
             )
-            params_placeholder.pack(padx=20, pady=20)
+            basic_placeholder.pack(padx=20, pady=20)
         
-        # Create Calibration panel if controller is available
-        if 'calibration_controller' in self.controllers:
-            self.calibration_panel = CalibrationPanel(
-                self.tabview.tab("Calibration"),
-                self.controllers['calibration_controller'],
-                self.app_state
+        # Create Markov Analysis panel
+        if 'analysis_controller' in self.controllers:
+            self.markov_analysis_panel = MarkovAnalysisPanel(
+                self.tabview.tab("Markov Analysis"),
+                self.app_state,
+                self.controllers['analysis_controller']
             )
-            self.calibration_panel.pack(fill="both", expand=True)
+            self.markov_analysis_panel.pack(fill="both", expand=True)
         else:
-            calibration_placeholder = ctk.CTkLabel(
-                self.tabview.tab("Calibration"),
-                text="Calibration controller not available",
+            markov_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Markov Analysis"),
+                text="Analysis controller not available",
                 font=ctk.CTkFont(size=16)
             )
-            calibration_placeholder.pack(padx=20, pady=20)
+            markov_placeholder.pack(padx=20, pady=20)
+        
+        # Create Trend Analysis panel
+        if 'analysis_controller' in self.controllers:
+            self.trend_analysis_panel = TrendAnalysisPanel(
+                self.tabview.tab("Trend Analysis"),
+                self.app_state,
+                self.controllers['analysis_controller']
+            )
+            self.trend_analysis_panel.pack(fill="both", expand=True)
+        else:
+            trend_placeholder = ctk.CTkLabel(
+                self.tabview.tab("Trend Analysis"),
+                text="Analysis controller not available",
+                font=ctk.CTkFont(size=16)
+            )
+            trend_placeholder.pack(padx=20, pady=20)
+        
+        # Initialize tab access control based on project folder state
+        self._update_tab_access()
     
     def on_state_change(self, state_key: str, new_value: Any) -> None:
         """
         React to application state changes.
         
         Updates UI elements when relevant state properties change.
-        ProjectPanel handles its own state updates, so this is mainly
-        for future panels.
+        Specifically handles project_folder changes to enable/disable tabs.
         
         Args:
             state_key: Name of the state property that changed
             new_value: New value of the state property
         """
-        # ProjectPanel handles project_folder updates itself
-        # Future panels will handle their own state updates here
-        pass
+        if state_key == 'project_folder':
+            # Update tab access when working directory changes
+            self._update_tab_access()
+    
+    def _update_tab_access(self) -> None:
+        """
+        Enable or disable tabs based on project folder state.
+        
+        When no working directory is selected, only the Home tab is accessible.
+        When a working directory is selected, all tabs are accessible.
+        """
+        has_project = self.app_state.project_folder is not None
+        
+        # Get all tab names
+        tab_names = ["Home", "Search", "Upload", "Basic Analysis", "Markov Analysis", "Trend Analysis"]
+        
+        # Enable/disable tabs based on project folder state
+        for tab_name in tab_names:
+            if tab_name == "Home":
+                # Home tab is always enabled
+                continue
+            
+            # For other tabs, enable only if project folder is set
+            if has_project:
+                # Enable tab by making it selectable
+                # CustomTkinter doesn't have a direct disable method, so we use configure
+                try:
+                    self.tabview._segmented_button.configure(state="normal")
+                except:
+                    pass  # If configuration fails, tabs remain accessible
+            else:
+                # When no project folder, set Home as active tab
+                try:
+                    self.tabview.set("Home")
+                except:
+                    pass
     
     
     def on_closing(self) -> None:

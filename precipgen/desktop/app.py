@@ -16,7 +16,7 @@ from precipgen.desktop.models.app_state import AppState
 from precipgen.desktop.models.session_config import SessionConfig
 from precipgen.desktop.controllers.project_controller import ProjectController
 from precipgen.desktop.controllers.data_controller import DataController
-from precipgen.desktop.controllers.calibration_controller import CalibrationController
+from precipgen.desktop.controllers.analysis_controller import AnalysisController
 from precipgen.desktop.views.main_window import MainWindow
 
 
@@ -59,7 +59,7 @@ class DesktopApp:
             # Initialize controllers
             self.project_controller = ProjectController(self.app_state, self.session_config)
             self.data_controller = DataController(self.app_state)
-            self.calibration_controller = CalibrationController(self.app_state)
+            self.analysis_controller = AnalysisController(self.app_state)
             
             # Restore project folder from session if valid
             if self.session_config.validate_project_folder():
@@ -133,7 +133,7 @@ class DesktopApp:
             controllers = {
                 'project_controller': self.project_controller,
                 'data_controller': self.data_controller,
-                'calibration_controller': self.calibration_controller
+                'analysis_controller': self.analysis_controller
             }
             
             # Create main window with controllers

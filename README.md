@@ -4,10 +4,23 @@ A tool for analyzing historical precipitation data and generating parameters for
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)](https://github.com/jlillywh/precipgen_par/releases)
 
 ## Quick Start
 
+### Desktop Application (Recommended)
+```bash
+# Run the GUI application
+python -m precipgen.desktop.app
+```
 
+The desktop application provides a clean 6-tab workflow:
+1. **Home** - Select working directory
+2. **Search** - Find GHCN stations by location
+3. **Upload** - Import custom precipitation data
+4. **Basic Analysis** - View descriptive statistics
+5. **Markov Analysis** - Calculate parameters for PrecipGen
+6. **Trend Analysis** - Analyze seasonal trends
 
 ### Interactive Menu
 ```bash
@@ -33,9 +46,13 @@ precipgen_par/
 │   ├── core/              # Core analysis modules
 │   ├── data/              # Data handling
 │   ├── cli/               # CLI interface
+│   ├── desktop/           # Desktop GUI application
+│   │   ├── views/        # UI components (6 tabs)
+│   │   ├── controllers/  # Business logic
+│   │   └── models/       # State management
 │   └── web/               # Streamlit web app
 ├── scripts/                # Executable scripts
-├── tests/                  # Test suite
+├── tests/                  # Test suite (105+ tests)
 ├── docs/                   # Documentation
 │   ├── guides/            # User guides
 │   ├── deployment/        # Deployment docs
@@ -43,10 +60,21 @@ precipgen_par/
 ├── precipgen-web.py       # Web interface launcher
 ├── precipgen-cli.py       # CLI launcher
 ├── precipgen-menu.py      # Interactive menu launcher
+├── build_executable.bat   # Build Windows executable
 └── README.md
 ```
 
 ## Features
+
+### Desktop GUI (New in v1.3.0)
+- Clean 6-tab MVC architecture
+- GHCN station search with year range display
+- Automatic GHCN metadata parsing
+- Progressive disclosure for detailed results
+- Station-specific export filenames
+- Real-time analysis with progress indicators
+
+### Analysis Capabilities
 
 
 

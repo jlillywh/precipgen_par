@@ -75,11 +75,14 @@ hiddenimports = [
     'precipgen.desktop.models.session_config',
     'precipgen.desktop.controllers.project_controller',
     'precipgen.desktop.controllers.data_controller',
-    'precipgen.desktop.controllers.calibration_controller',
+    'precipgen.desktop.controllers.analysis_controller',
     'precipgen.desktop.views.main_window',
-    'precipgen.desktop.views.project_panel',
-    'precipgen.desktop.views.data_panel',
-    'precipgen.desktop.views.calibration_panel',
+    'precipgen.desktop.views.home_panel',
+    'precipgen.desktop.views.search_panel',
+    'precipgen.desktop.views.upload_panel',
+    'precipgen.desktop.views.basic_analysis_panel',
+    'precipgen.desktop.views.markov_analysis_panel',
+    'precipgen.desktop.views.trend_analysis_panel',
 ]
 
 # Binaries to exclude (reduce size)

@@ -37,6 +37,13 @@ class AppState:
         self.historical_params: Optional[Any] = None  # HistoricalParameters type
         self.adjusted_params: Optional[Any] = None  # AdjustedParameters type
         
+        # New state properties for GUI refactor
+        self.basic_analysis_results: Optional[Any] = None  # BasicAnalysisResults type
+        self.markov_parameters: Optional[Any] = None  # MarkovParameters type
+        self.trend_analysis_results: Optional[Any] = None  # TrendAnalysisResults type
+        self.selected_station: Optional[str] = None  # For cross-tab persistence
+        self.available_stations: List[str] = []  # List of CSV files in working directory
+        
         # Observer pattern: list of callbacks to notify on state changes
         self._observers: List[Callable[[str, Any], None]] = []
     
@@ -90,6 +97,56 @@ class AppState:
         self.adjusted_params = params
         self._notify_observers('adjusted_params', params)
     
+    def set_basic_analysis_results(self, results: Any) -> None:
+        """
+        Update basic analysis results and notify observers.
+        
+        Args:
+            results: BasicAnalysisResults object with calculated statistics
+        """
+        self.basic_analysis_results = results
+        self._notify_observers('basic_analysis_results', results)
+    
+    def set_markov_parameters(self, params: Any) -> None:
+        """
+        Update Markov parameters and notify observers.
+        
+        Args:
+            params: MarkovParameters object with calculated values
+        """
+        self.markov_parameters = params
+        self._notify_observers('markov_parameters', params)
+    
+    def set_trend_analysis_results(self, results: Any) -> None:
+        """
+        Update trend analysis results and notify observers.
+        
+        Args:
+            results: TrendAnalysisResults object with seasonal trends
+        """
+        self.trend_analysis_results = results
+        self._notify_observers('trend_analysis_results', results)
+    
+    def set_selected_station(self, station_file: str) -> None:
+        """
+        Update selected station and notify observers.
+        
+        Args:
+            station_file: Name of the selected station CSV file
+        """
+        self.selected_station = station_file
+        self._notify_observers('selected_station', station_file)
+    
+    def set_available_stations(self, stations: List[str]) -> None:
+        """
+        Update available stations list and notify observers.
+        
+        Args:
+            stations: List of CSV filenames in working directory
+        """
+        self.available_stations = stations
+        self._notify_observers('available_stations', stations)
+    
     def register_observer(self, callback: Callable[[str, Any], None]) -> None:
         """
         Register callback for state change notifications.
@@ -140,6 +197,11 @@ class AppState:
         self.precipitation_data = None
         self.historical_params = None
         self.adjusted_params = None
+        self.basic_analysis_results = None
+        self.markov_parameters = None
+        self.trend_analysis_results = None
+        self.selected_station = None
+        self.available_stations = []
         
         # Notify observers of the clear operation
         self._notify_observers('clear_all', None)
@@ -159,3 +221,15 @@ class AppState:
     def has_adjusted_params(self) -> bool:
         """Check if parameters have been adjusted by the user."""
         return self.adjusted_params is not None
+    
+    def has_basic_analysis_results(self) -> bool:
+        """Check if basic analysis results are available."""
+        return self.basic_analysis_results is not None
+    
+    def has_markov_parameters(self) -> bool:
+        """Check if Markov parameters have been calculated."""
+        return self.markov_parameters is not None
+    
+    def has_trend_analysis_results(self) -> bool:
+        """Check if trend analysis results are available."""
+        return self.trend_analysis_results is not None

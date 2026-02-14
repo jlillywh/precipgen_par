@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-13
+
+### Changed
+- Replaced radio button station selector with dropdown in Search panel for cleaner UI
+- Search results now show station year ranges in dropdown format (GHCNXXX - Name (start-end))
+- Limited search results display to 100 stations maximum, ordered by station ID
+- Separated data download from parameter calculation (download-only workflow)
+- Enhanced error messages with actionable troubleshooting guidance
+- Improved CSV parsing with automatic GHCN metadata row detection
+
+### Fixed
+- Fixed GHCN CSV parsing errors with metadata rows at file start
+- Removed artificial 0.998 cap on gamma distribution alpha parameter for statistically correct precipitation modeling
+
 ## [1.2.3] - 2026-02-13
 
 ### Fixed

@@ -175,10 +175,14 @@ def test_logger_available_in_all_modules():
     from precipgen.desktop.controllers import project_controller
     from precipgen.desktop.controllers import data_controller
     from precipgen.desktop.controllers import calibration_controller
+    from precipgen.desktop.controllers import analysis_controller
     from precipgen.desktop.views import main_window
-    from precipgen.desktop.views import project_panel
-    from precipgen.desktop.views import data_panel
-    from precipgen.desktop.views import calibration_panel
+    from precipgen.desktop.views import home_panel
+    from precipgen.desktop.views import search_panel
+    from precipgen.desktop.views import upload_panel
+    from precipgen.desktop.views import basic_analysis_panel
+    from precipgen.desktop.views import markov_analysis_panel
+    from precipgen.desktop.views import trend_analysis_panel
     
     # Verify each module has a logger
     modules = [
@@ -186,10 +190,14 @@ def test_logger_available_in_all_modules():
         project_controller,
         data_controller,
         calibration_controller,
+        analysis_controller,
         main_window,
-        project_panel,
-        data_panel,
-        calibration_panel
+        home_panel,
+        search_panel,
+        upload_panel,
+        basic_analysis_panel,
+        markov_analysis_panel,
+        trend_analysis_panel
     ]
     
     for module in modules:
