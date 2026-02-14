@@ -75,7 +75,9 @@ def calculate_params(precip_ts):
 
             anum[m] = 8.898919 + 9.05995 * y[m] + 0.9775373 * y[m] * y[m]
             adom[m] = y[m] * (17.79728 + 11.968477 * y[m] + y[m] * y[m])
-            alpha[m] = min(0 if adom[m] <= 0 else anum[m] / adom[m], 0.998)
+            # Allow alpha to be >= 1.0 (removed artificial 0.998 cap from original WGEN)
+            # The gamma distribution is valid for all alpha > 0
+            alpha[m] = anum[m] / adom[m] if adom[m] > 0 else 0.001
             beta[m] = rbar[m] / alpha[m] if alpha[m] > 0 else 0.0
 
     # Ensure all parameters are positive, and set defaults if necessary
@@ -225,8 +227,10 @@ def calculate_window_params(precip_ts, n_years=2):
         anum = 8.898919 + 9.05995 * log_term + 0.9775373 * (log_term**2)
         adom = log_term * (17.79728 + 11.968477 * log_term + (log_term**2))
 
+        # Allow alpha to be >= 1.0 (removed artificial 0.998 cap from original WGEN)
+        # The gamma distribution is valid for all alpha > 0
         if adom > 0:
-            alpha = min(anum / adom, 0.998)
+            alpha = anum / adom
         else:
             alpha = 0.001
 
